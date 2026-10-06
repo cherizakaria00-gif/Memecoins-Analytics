@@ -15,7 +15,7 @@
       <div class="landing" id="gate-landing">
         <header class="land-nav">
           <a class="gate-brand" href="/" aria-label="Pulse"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong>PULSE</strong></a>
-          <nav class="land-links" aria-label="Sections"><a href="#fonctions">Fonctions</a><a href="#resultats">Résultats</a><a href="#methode">Comment ça marche</a><a href="#tarif">Tarif</a><a href="#faq">FAQ</a></nav>
+          <nav class="land-links" aria-label="Sections"><a href="#fonctions">Fonctions</a><a href="#bot">Bot</a><a href="#resultats">Résultats</a><a href="#methode">Comment ça marche</a><a href="#tarif">Tarif</a><a href="#faq">FAQ</a></nav>
           <div class="land-cta"><button class="lang-switch" type="button" data-lang-switch aria-label="Langue / Language">🌐 <span data-lang-label></span></button><button class="land-login" type="button" data-open-auth="login">Connexion</button><button class="land-start" type="button" data-open-auth="signup">Commencer</button></div>
         </header>
 
@@ -68,8 +68,31 @@
             <article><span>🛡️</span><h3>Filtre qualité</h3><p>Market cap, liquidité, volume, frais, âge, snipers, bundlers et top 10 des détenteurs. Les coins qualifiés passent au vert.</p></article>
             <article><span>🎯</span><h3>Signaux et plan de trade</h3><p>Notes A/B/C, détection des démarrages précoces, entrée, stop-loss et cibles calculés pour chaque coin.</p></article>
             <article><span>🧪</span><h3>Paper trading réaliste</h3><p>Frais, slippage et presets. Stop-loss et take-profit automatiques, historique et tableau de bord complets.</p></article>
+            <article><span>🤖</span><h3>Bot de trade automatique</h3><p>Entrée et sorties en pourcentage fixés par toi, avec des garde-fous. Il tourne sur le portefeuille de simulation.</p></article>
             <article><span>🔔</span><h3>Alertes</h3><p>Nouveaux signaux, traders suivis, stop-loss et take-profit, dans le navigateur et sur ton téléphone.</p></article>
             <article><span>👛</span><h3>Mode LIVE non-custodial</h3><p>Connecte Phantom, Solflare ou WalletConnect : tu signes chaque swap toi-même. Pulse ne détient jamais tes fonds.</p></article>
+          </div>
+        </section>
+
+        <section class="land-section" id="bot">
+          <div class="bot-showcase">
+            <div>
+              <p class="eyebrow">TRADING AUTOMATIQUE</p><h2>Un bot qui trade selon tes règles</h2>
+              <p class="land-note">Fixe une fois ton entrée et tes sorties : le bot achète les signaux qui respectent tes critères, puis sort tout seul au stop-loss ou au take-profit.</p>
+              <ul class="bot-points">
+                <li><b>Entrée fixe</b> : un pourcentage de ton solde par trade, avec un plafond.</li>
+                <li><b>Sorties fixes</b> : stop-loss et take-profit en pourcentage, appliqués à chaque position.</li>
+                <li><b>Garde-fous</b> : nombre de positions limité, pas de ré-entrée immédiate et perte maximale par jour.</li>
+                <li><b>Signaux au choix</b> : qualifiés, démarrages ⚡ ou les deux, avec un score minimum.</li>
+              </ul>
+              <p class="results-disclaimer">Le bot trade avec le portefeuille de simulation. En mode LIVE, chaque ordre reste signé par toi dans ton wallet : Pulse ne détient jamais tes clés.</p>
+            </div>
+            <div class="bot-mock" aria-hidden="true">
+              <div class="bot-mock-head"><div><small>TRADING AUTOMATIQUE · MODE TEST</small><b>Bot de trade automatique</b></div><span class="mock-switch"><i></i>Actif</span></div>
+              <div class="bot-mock-grid"><div><small>Taille d'entrée</small><b>5 %</b></div><div><small>Stop-loss</small><b class="down">−25 %</b></div><div><small>Take-profit</small><b class="up">+50 %</b></div><div><small>Positions bot max</small><b>3</b></div></div>
+              <div class="bot-mock-log"><div><time>16:07</time><span>Achat $500 · $EXAMPLE (qualifié, score 78) · SL −25 % · TP +50 %</span></div><div><time>15:42</time><span>Achat $500 · $DEMO (⚡ démarrage, score 82) · SL −25 % · TP +50 %</span></div><div><time>15:20</time><span>Take-profit atteint · $SAMPLE · +$152</span></div></div>
+              <div class="bot-mock-status"><em class="mock-tag">Aperçu illustratif</em>2 / 3 positions bot · réussite 72 % · aujourd'hui +$38</div>
+            </div>
           </div>
         </section>
 
