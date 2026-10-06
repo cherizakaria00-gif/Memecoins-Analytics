@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import QRCode from "qrcode";
-import { PLAN } from "./billing.mjs";
+import { planFor } from "./billing.mjs";
 
 export const NETWORKS = {
   solana: { label: "Solana", explorerTx: "https://solscan.io/tx/", family: "solana" },
@@ -75,17 +75,18 @@ const scale = (decimal, decimals) => {
 };
 
 /** Amount to pay in the chosen asset: the plan price for stablecoins, the price converted at the current SOL rate for SOL. */
-export function quoteAmount({ asset, network, solUsd }) {
+export function quoteAmount({ asset, network, solUsd, interval = "month" }) {
   const info = ASSETS[asset]?.[network];
   if (!info) throw new CryptoPaymentError("Méthode de paiement indisponible.");
-  const usd = PLAN.priceCents / 100;
+  const plan = planFor(interval);
+  const usd = plan.priceCents / 100;
   if (asset === "SOL") {
     if (!(solUsd > 0)) throw new CryptoPaymentError("Cours du SOL indisponible, réessaie dans un instant.", 503);
     const sol = (Math.ceil((usd / solUsd) * 10_000) / 10_000).toFixed(4);
-    return { amount: sol, raw: scale(sol, info.decimals), usdCents: PLAN.priceCents };
+    return { amount: sol, raw: scale(sol, info.decimals), usdCents: plan.priceCents };
   }
   const amount = usd.toFixed(2);
-  return { amount, raw: scale(amount, info.decimals), usdCents: PLAN.priceCents };
+  return { amount, raw: scale(amount, info.decimals), usdCents: plan.priceCents };
 }
 
 /** Text encoded in the QR code: Solana Pay for Solana, EIP-681 for the EVM chains. */
@@ -111,7 +112,7 @@ export function createCryptoPayments({ store, addresses, getSolUsd, now = () => 
     const network = NETWORKS[request.network];
     const raw = scale(request.amount, info?.decimals ?? 0);
     return {
-      id: request.id, status: request.status, asset: request.asset, network: request.network, networkLabel: network?.label ?? request.network,
+      id: request.id, status: request.status, interval: request.amount_usd_cents >= planFor("year").priceCents ? "year" : "month", asset: request.asset, network: request.network, networkLabel: network?.label ?? request.network,
       address: request.address, amount: request.amount, amountUsd: request.amount_usd_cents / 100, reference: request.reference,
       contract: info?.mint ?? info?.contract ?? null, txHash: request.tx_hash ?? null, explorer: request.tx_hash ? `${network?.explorerTx}${request.tx_hash}` : null,
       createdAt: request.created_at, expiresAt: request.expires_at, submittedAt: request.submitted_at ?? null, decidedAt: request.decided_at ?? null, note: request.note ?? null,
@@ -124,15 +125,15 @@ export function createCryptoPayments({ store, addresses, getSolUsd, now = () => 
     view,
     qr: qrSvg,
 
-    async createRequest(user, { asset, network }) {
+    async createRequest(user, { asset, network, interval = "month" }) {
       if (!availableMethods(addresses).some(method => method.asset === asset && method.network === network)) throw new CryptoPaymentError("Cette méthode de paiement n'est pas disponible.");
       const subscription = store.subscription(user.id);
       if (subscription?.provider !== "crypto" && ["active", "trialing"].includes(subscription?.status)) throw new CryptoPaymentError("Tu as déjà un abonnement actif.", 409);
       const at = now();
       const existing = store.openCryptoRequest(user.id, asset, network, at);
-      if (existing) return view(existing);
+      if (existing && existing.amount_usd_cents === planFor(interval).priceCents) return view(existing);
       if (store.cryptoRequestsSince(user.id, at - DAY_MS) >= MAX_REQUESTS_PER_DAY) throw new CryptoPaymentError("Trop de demandes de paiement aujourd'hui. Réessaie demain ou contacte le support.", 429);
-      const quote = quoteAmount({ asset, network, solUsd: asset === "SOL" ? await getSolUsd() : 0 });
+      const quote = quoteAmount({ asset, network, solUsd: asset === "SOL" ? await getSolUsd() : 0, interval });
       const id = randomUUID();
       store.createCryptoRequest({ id, userId: user.id, asset, network, address: addresses[network], amount: quote.amount, amountUsdCents: quote.usdCents, reference: newReference(), now: at, expiresAt: at + (asset === "SOL" ? REQUEST_TTL_MS.SOL : REQUEST_TTL_MS.stable) });
       return view(store.cryptoRequest(id));
@@ -159,7 +160,7 @@ export function createCryptoPayments({ store, addresses, getSolUsd, now = () => 
     adminList: () => store.allCryptoRequests().map(row => ({ ...view(row), email: row.email, userId: row.user_id, days: row.days ?? null })),
 
     /** Grants access: extends from the end of a still-valid crypto period, otherwise from now. Also books the payment as revenue. */
-    approve(request, { days = ACCESS_DAYS, note = null, adminEmail }) {
+    approve(request, { days = request.amount_usd_cents >= planFor("year").priceCents ? planFor("year").days : ACCESS_DAYS, note = null, adminEmail }) {
       if (!["open", "submitted"].includes(request.status)) throw new CryptoPaymentError("Cette demande est déjà traitée.", 409);
       const subscription = store.subscription(request.user_id);
       if (subscription?.provider !== "crypto" && ["active", "trialing"].includes(subscription?.status)) throw new CryptoPaymentError("Ce client a déjà un abonnement Stripe actif.", 409);

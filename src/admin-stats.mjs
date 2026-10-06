@@ -1,4 +1,4 @@
-import { PLAN } from "./billing.mjs";
+import { PLAN, PLANS } from "./billing.mjs";
 
 export const START_BALANCE = 10_000;
 const DAY_MS = 86_400_000;
@@ -41,6 +41,12 @@ export function planLabel({ status, comped }) {
 /** Totals and per-subscriber rows for the admin dashboard. `payments` are paid invoices (gross, in cents). */
 export function buildAdminOverview({ rows, payments, adminEmails = [], now = Date.now() }) {
   const paidByCustomer = new Map();
+  const lastPaymentByCustomer = new Map();
+  for (const payment of payments) if (!lastPaymentByCustomer.has(payment.customer_id) || payment.paid_at > lastPaymentByCustomer.get(payment.customer_id).paid_at) lastPaymentByCustomer.set(payment.customer_id, payment);
+  const monthlyValue = row => {
+    const last = lastPaymentByCustomer.get(row.stripe_customer_id ?? `crypto:${row.id}`) ?? lastPaymentByCustomer.get(`crypto:${row.id}`);
+    return last && last.amount_cents >= PLANS.year.priceCents ? PLANS.year.priceCents / 12 : PLAN.priceCents;
+  };
   for (const payment of payments) paidByCustomer.set(payment.customer_id, (paidByCustomer.get(payment.customer_id) ?? 0) + payment.amount_cents);
 
   const subscribers = rows.map(row => {
@@ -51,7 +57,7 @@ export function buildAdminOverview({ rows, payments, adminEmails = [], now = Dat
     const state = summarizeUserState(row.state_data);
     return {
       id: row.id, email: row.email, createdAt: row.created_at, lastLoginAt: row.last_login_at, lastSyncAt: row.state_updated_at ?? null,
-      plan: planLabel({ status, comped }), active, comped, renewsAt: row.current_period_end ?? null, cancelsAtPeriodEnd: Boolean(row.cancel_at_period_end),
+      monthlyCents: monthlyValue(row), plan: planLabel({ status, comped }), active, comped, renewsAt: row.current_period_end ?? null, cancelsAtPeriodEnd: Boolean(row.cancel_at_period_end),
       provider: row.provider ?? (row.stripe_customer_id ? "stripe" : null),
       paidCents: (row.stripe_customer_id ? paidByCustomer.get(row.stripe_customer_id) ?? 0 : 0) + (paidByCustomer.get(`crypto:${row.id}`) ?? 0), ...state
     };
@@ -72,7 +78,7 @@ export function buildAdminOverview({ rows, payments, adminEmails = [], now = Dat
       canceled: subscribers.filter(subscriber => subscriber.plan === "canceled").length,
       signups7d: subscribers.filter(subscriber => now - subscriber.createdAt < 7 * DAY_MS).length,
       signups30d: subscribers.filter(subscriber => now - subscriber.createdAt < 30 * DAY_MS).length,
-      mrrCents: paying.length * PLAN.priceCents,
+      mrrCents: Math.round(paying.reduce((total, subscriber) => total + subscriber.monthlyCents, 0)),
       collectedCents: sum(payments),
       collectedMonthCents: sum(payments.filter(payment => payment.paid_at >= startOfMonth.getTime())),
       collected30dCents: sum(payments.filter(payment => now - payment.paid_at < 30 * DAY_MS)),

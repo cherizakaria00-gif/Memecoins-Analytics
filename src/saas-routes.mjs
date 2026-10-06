@@ -1,5 +1,5 @@
 import { AuthError, SESSION_COOKIE, clearedSessionCookie, createLimiter, parseCookies, sessionCookie } from "./auth.mjs";
-import { PLAN } from "./billing.mjs";
+import { PLAN, PLANS } from "./billing.mjs";
 import { sanitizeState } from "./user-state.mjs";
 import { buildAdminOverview } from "./admin-stats.mjs";
 
@@ -76,7 +76,7 @@ export function createSaas({ auth, billing, store, crypto = null, send, secureCo
 
       try {
         if (pathname === "/api/config" && method === "GET") {
-          send(response, 200, { plan: { ...PLAN, trialDays: billing.trialDays ?? 0 }, billingConfigured: billing.configured, devBilling: billing.devMode, cryptoMethods: crypto?.methods() ?? [] });
+          send(response, 200, { plan: { ...PLAN, trialDays: billing.trialDays ?? 0 }, plans: PLANS, billingConfigured: billing.configured, devBilling: billing.devMode, cryptoMethods: crypto?.methods() ?? [] });
           return true;
         }
         if (pathname === "/api/me" && method === "GET") {
@@ -117,7 +117,8 @@ export function createSaas({ auth, billing, store, crypto = null, send, secureCo
           if (!request.user) { send(response, 401, { error: "Connexion requise.", code: "login_required" }); return true; }
           if (pathname === "/api/billing/checkout" && method === "POST") {
             if (billing.access(request.user).active && !billing.access(request.user).comped) { send(response, 409, { error: "Tu as déjà un abonnement actif." }); return true; }
-            send(response, 200, { url: await billing.createCheckout(request.user) });
+            const interval = request.headers["content-length"] > 0 ? (await readJson(request)).interval : "month";
+            send(response, 200, { url: await billing.createCheckout(request.user, interval === "year" ? "year" : "month") });
             return true;
           }
           if (pathname === "/api/billing/portal" && method === "POST") { send(response, 200, { url: await billing.createPortal(request.user) }); return true; }
@@ -134,7 +135,7 @@ export function createSaas({ auth, billing, store, crypto = null, send, secureCo
           if (method !== "GET" && cryptoLimiter.hit(request.user.id)) { send(response, 429, { error: "Trop de requêtes. Réessaie plus tard." }); return true; }
           if (pathname === "/api/crypto/request" && method === "POST") {
             const body = await readJson(request);
-            send(response, 200, await crypto.createRequest(request.user, { asset: String(body.asset ?? ""), network: String(body.network ?? "") }));
+            send(response, 200, await crypto.createRequest(request.user, { asset: String(body.asset ?? ""), network: String(body.network ?? ""), interval: body.interval === "year" ? "year" : "month" }));
             return true;
           }
           if (pathname === "/api/crypto/mine" && method === "GET") { send(response, 200, { requests: crypto.mine(request.user) }); return true; }

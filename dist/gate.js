@@ -41,6 +41,20 @@ function showError(id, message) {
   node.textContent = message ?? "";
 }
 
+/* ---- Billing interval (monthly 20 $ / yearly 200 $) ---- */
+const PRICES = { month: { price: "20 $", unit: "/ mois", note: "Sans engagement, annulable à tout moment.", button: "S'abonner · 20 $ / mois" }, year: { price: "200 $", unit: "/ an", note: "Soit 16,67 $ / mois : 2 mois offerts.", button: "S'abonner · 200 $ / an" } };
+let interval = "month";
+function setInterval_(next) {
+  interval = next;
+  document.querySelectorAll("[data-interval]").forEach(button => button.classList.toggle("active", button.dataset.interval === next));
+  document.querySelectorAll("[data-price]").forEach(node => { node.textContent = PRICES[next].price; });
+  document.querySelectorAll("[data-price-unit]").forEach(node => { node.textContent = PRICES[next].unit; });
+  document.querySelectorAll("[data-price-note]").forEach(node => { node.textContent = PRICES[next].note; });
+  $("#paywall-subscribe").textContent = PRICES[next].button;
+  if (crypto.request && crypto.request.interval !== next && crypto.request.status === "open") $("#crypto-back").click();
+}
+document.querySelectorAll("[data-interval]").forEach(button => button.addEventListener("click", () => setInterval_(button.dataset.interval)));
+
 /* ---- Legal modal ---- */
 const legal = $("#legal-modal");
 document.querySelectorAll("[data-open-legal]").forEach(button => button.addEventListener("click", () => { legal.hidden = false; }));
@@ -91,7 +105,7 @@ async function startCheckout(button, errorId) {
   button.disabled = true;
   showError(errorId, null);
   try {
-    window.location.assign((await api("/api/billing/checkout", { method: "POST" })).url);
+    window.location.assign((await api("/api/billing/checkout", { method: "POST", body: { interval } })).url);
   } catch (error) {
     showError(errorId, error.message);
     button.disabled = false;
@@ -131,6 +145,7 @@ const WARNINGS = {
 
 function renderInvoice(request) {
   crypto.request = request;
+  if (interval !== request.interval) setInterval_(request.interval);
   $("#crypto-pick").hidden = true;
   $("#crypto-invoice").hidden = false;
   $("#crypto-qr").src = `/api/crypto/${request.id}/qr.svg`;
@@ -145,7 +160,7 @@ function renderInvoice(request) {
   $("#crypto-submit-box").hidden = request.status !== "open";
   status.hidden = request.status === "open";
   status.className = `invoice-status ${request.status}`;
-  if (submitted) status.innerHTML = `⏳ Paiement reçu pour vérification. L'administrateur l'examine et active ton accès (30 jours) dès validation. Cette page se met à jour automatiquement.${request.explorer ? ` <a href="${request.explorer}" target="_blank" rel="noopener noreferrer">Voir la transaction</a>` : ""}`;
+  if (submitted) status.innerHTML = `⏳ Paiement reçu pour vérification. L'administrateur l'examine et active ton accès (${request.interval === "year" ? "365" : "30"} jours) dès validation. Cette page se met à jour automatiquement.${request.explorer ? ` <a href="${request.explorer}" target="_blank" rel="noopener noreferrer">Voir la transaction</a>` : ""}`;
   else if (request.status === "rejected") status.textContent = `Paiement refusé${request.note ? ` : ${request.note}` : "."} Tu peux faire une nouvelle demande ou contacter le support.`;
   else if (request.status === "approved") status.textContent = "✅ Paiement validé. Ouverture de Pulse…";
   clearInterval(crypto.timer);
@@ -180,7 +195,7 @@ $("#crypto-start").addEventListener("click", async event => {
   const button = event.currentTarget;
   button.disabled = true;
   showError("#paywall-error", null);
-  try { renderInvoice(await api("/api/crypto/request", { method: "POST", body: { asset: crypto.asset, network: crypto.network } })); }
+  try { renderInvoice(await api("/api/crypto/request", { method: "POST", body: { asset: crypto.asset, network: crypto.network, interval } })); }
   catch (error) { showError("#paywall-error", error.message); }
   button.disabled = !(crypto.asset && crypto.network);
 });

@@ -125,3 +125,17 @@ test("the SOL request uses the current rate and expires faster than stablecoins"
   assert.equal(stable.expiresAt - NOW, 60 * 60_000);
   assert.equal(stable.contract, ASSETS.USDT.solana.mint);
 });
+
+test("the yearly plan costs $200, is quoted separately and grants 365 days", async () => {
+  const { service, user, store } = setup();
+  assert.deepEqual(quoteAmount({ asset: "USDC", network: "polygon", interval: "year" }), { amount: "200.00", raw: "200000000", usdCents: 20000 });
+  assert.equal(quoteAmount({ asset: "SOL", network: "solana", solUsd: 125, interval: "year" }).amount, "1.6000");
+  const monthly = await service.createRequest(user, { asset: "USDC", network: "polygon" });
+  const yearly = await service.createRequest(user, { asset: "USDC", network: "polygon", interval: "year" });
+  assert.notEqual(yearly.id, monthly.id, "a different plan gets its own request");
+  assert.equal(yearly.interval, "year");
+  service.submit(user, yearly.id, `0x${"e".repeat(64)}`);
+  service.approve(store.cryptoRequest(yearly.id), { adminEmail: "boss@x.co" });
+  assert.equal(store.subscription("u1").current_period_end, NOW + 365 * 86_400_000);
+  assert.equal(store.payments()[0].amount_cents, 20000);
+});

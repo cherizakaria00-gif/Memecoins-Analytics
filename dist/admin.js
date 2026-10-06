@@ -22,7 +22,7 @@ const FILTERS = {
 function renderKpis(totals) {
   const cards = [
     ["Abonnés actifs", String(totals.active), `${totals.paying} payants · ${totals.comped} offerts · ${totals.trialing} en essai`, ""],
-    ["Revenu mensuel (MRR)", money(totals.mrrCents), `${totals.paying} × 20 $ / mois`, "positive"],
+    ["Revenu mensuel (MRR)", money(totals.mrrCents), `${totals.paying} payants (annuel ÷ 12)`, "positive"],
     ["Total encaissé", money(totals.collectedCents, 2), `${totals.paymentsCount} paiement${totals.paymentsCount > 1 ? "s" : ""} · dont crypto ${money(totals.collectedCryptoCents ?? 0, 2)}`, "positive"],
     ["Encaissé ce mois", money(totals.collectedMonthCents, 2), `30 derniers jours : ${money(totals.collected30dCents, 2)}`, ""],
     ["Inscrits", String(totals.users), `${totals.signups7d} cette semaine · ${totals.signups30d} ce mois`, ""],
@@ -76,12 +76,12 @@ function renderCrypto() {
     const actionable = row.status === "submitted" || row.status === "open";
     return `<tr>
       <td><strong class="cell-main">${esc(row.email)}</strong><small class="since-note">réf. ${esc(row.reference)}</small></td>
-      <td>${esc(row.asset)}<small class="since-note">${esc(row.networkLabel)}</small></td>
+      <td>${esc(row.asset)}<small class="since-note">${esc(row.networkLabel)} · ${row.interval === "year" ? "annuel" : "mensuel"}</small></td>
       <td>${esc(row.amount)} ${esc(row.asset)}<small class="since-note">${esc(money(row.amountUsd * 100, 2))}</small></td>
       <td>${row.explorer ? `<a class="wallet-link" href="${esc(row.explorer)}" target="_blank" rel="noopener noreferrer" title="${esc(row.txHash)}">${esc(row.txHash.slice(0, 8))}…${esc(row.txHash.slice(-6))}</a>` : '<span class="muted">pas encore soumise</span>'}</td>
       <td>${esc(dateTime(row.submittedAt ?? row.createdAt))}</td>
       <td><span class="plan-pill ${tone}">${esc(label)}</span>${row.note ? `<small class="since-note">${esc(row.note)}</small>` : ""}</td>
-      <td>${actionable ? `<div class="crypto-actions"><input type="number" min="1" max="366" value="30" aria-label="Jours d'accès" data-days="${esc(row.id)}" /><button class="text-button approve" data-crypto="approve" data-id="${esc(row.id)}">Valider</button><button class="text-button reject" data-crypto="reject" data-id="${esc(row.id)}">Refuser</button></div>` : '<span class="muted">—</span>'}</td></tr>`;
+      <td>${actionable ? `<div class="crypto-actions"><input type="number" min="1" max="366" value="${row.interval === "year" ? 365 : 30}" aria-label="Jours d'accès" data-days="${esc(row.id)}" /><button class="text-button approve" data-crypto="approve" data-id="${esc(row.id)}">Valider</button><button class="text-button reject" data-crypto="reject" data-id="${esc(row.id)}">Refuser</button></div>` : '<span class="muted">—</span>'}</td></tr>`;
   }).join("");
 }
 

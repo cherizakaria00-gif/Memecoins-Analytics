@@ -74,3 +74,15 @@ test("paid invoices are recorded once, from webhooks and backfills alike", () =>
   assert.equal(store.payments()[0].paid_at, 1_790_100_000_000);
   store.close();
 });
+
+test("MRR counts a yearly subscriber as one twelfth of the annual price", async () => {
+  const { buildAdminOverview } = await import("../src/admin-stats.mjs");
+  const now = 1_800_000_000_000;
+  const row = (id, extra) => ({ id, email: `${id}@x.co`, created_at: now, last_login_at: now, sub_status: "active", current_period_end: now + 1e9, cancel_at_period_end: 0, state_data: null, ...extra });
+  const overview = buildAdminOverview({
+    rows: [row("m", { stripe_customer_id: "cus_m" }), row("y", { provider: "crypto" })],
+    payments: [{ id: "a", customer_id: "cus_m", amount_cents: 2000, paid_at: now }, { id: "b", customer_id: "crypto:y", amount_cents: 20000, paid_at: now }],
+    now
+  });
+  assert.equal(overview.totals.mrrCents, 2000 + Math.round(20000 / 12));
+});

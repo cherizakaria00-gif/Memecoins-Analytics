@@ -1,6 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 export const PLAN = { name: "Pulse Pro", priceCents: 2000, currency: "usd", interval: "month" };
+export const PLANS = { month: { ...PLAN, days: 30 }, year: { ...PLAN, priceCents: 20000, interval: "year", days: 365 } };
+export const planFor = interval => PLANS[interval] ?? PLANS.month;
 const STRIPE_API = "https://api.stripe.com/v1";
 const WEBHOOK_TOLERANCE_S = 300;
 const PAST_DUE_GRACE_MS = 3 * 24 * 3_600_000;
@@ -116,14 +118,15 @@ export function createBilling({ store, secretKey, webhookSecret, appUrl, trialDa
     adminEmails,
     access: user => describeAccess({ user, subscription: store.subscription(user.id), adminEmails, now: now() }),
 
-    async createCheckout(user) {
+    async createCheckout(user, interval = "month") {
+      const plan = planFor(interval);
       const existing = store.subscription(user.id);
       const session = await stripe("/checkout/sessions", {
         body: {
           mode: "subscription",
           ...(existing?.stripe_customer_id ? { customer: existing.stripe_customer_id } : { customer_email: user.email }),
           client_reference_id: user.id,
-          line_items: [{ quantity: 1, price_data: { currency: PLAN.currency, unit_amount: PLAN.priceCents, recurring: { interval: PLAN.interval }, product_data: { name: PLAN.name, description: "Accès complet à la plateforme Pulse (abonnement mensuel)" } } }],
+          line_items: [{ quantity: 1, price_data: { currency: PLAN.currency, unit_amount: plan.priceCents, recurring: { interval: plan.interval }, product_data: { name: plan.name, description: `Accès complet à la plateforme Pulse (abonnement ${plan.interval === "year" ? "annuel" : "mensuel"})` } } }],
           subscription_data: { metadata: { user_id: user.id }, ...(trialDays > 0 ? { trial_period_days: trialDays } : {}) },
           allow_promotion_codes: "true",
           success_url: `${appUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,

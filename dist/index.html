@@ -66,15 +66,16 @@
           <div class="land-pricing">
             <div class="plan-card">
               <p class="plan-name">Pulse Pro</p>
-              <div class="price"><strong>20 $</strong><span>/ mois</span></div>
-              <p class="plan-sub">Sans engagement. <span id="gate-trial"></span></p>
+              <div class="interval-toggle" role="group" aria-label="Durée de l'abonnement"><button type="button" class="active" data-interval="month">Mensuel</button><button type="button" data-interval="year">Annuel <em>−17 %</em></button></div>
+              <div class="price"><strong data-price>20 $</strong><span data-price-unit>/ mois</span></div>
+              <p class="plan-sub"><span data-price-note>Sans engagement.</span> <span id="gate-trial"></span></p>
               <ul><li>Scanner, signaux et plan de trade</li><li>Paper trading et tableau de bord</li><li>Mode LIVE avec ton wallet</li><li>Alertes et synchronisation du compte</li></ul>
               <button class="land-start big" type="button" data-open-auth="signup">Commencer</button>
             </div>
             <div class="pay-methods">
               <h3>Moyens de paiement</h3>
               <div class="method-card"><b>💳 Carte bancaire</b><p>Paiement sécurisé par Stripe, renouvellement automatique, annulable à tout moment.</p></div>
-              <div class="method-card"><b>🪙 Crypto</b><p>Scanne le QR code et paie en <b>SOL</b>, <b>USDT</b> ou <b>USDC</b>.</p><div class="chips"><span>Solana</span><span>Ethereum (ERC-20)</span><span>Polygon</span><span>BNB Chain</span></div><p class="method-note">Paiement crypto valable 30 jours, validé manuellement par l'administrateur.</p></div>
+              <div class="method-card"><b>🪙 Crypto</b><p>Scanne le QR code et paie en <b>SOL</b>, <b>USDT</b> ou <b>USDC</b>.</p><div class="chips"><span>Solana</span><span>Ethereum (ERC-20)</span><span>Polygon</span><span>BNB Chain</span></div><p class="method-note">Accès de 30 jours (mensuel) ou 365 jours (annuel), validé manuellement par l'administrateur.</p></div>
             </div>
           </div>
         </section>
@@ -115,7 +116,8 @@
         <section class="gate-panel paywall-panel">
           <h2>Active ton abonnement</h2>
           <p class="paywall-user">Connecté en tant que <strong id="paywall-email">—</strong></p>
-          <div class="price-card compact"><div class="price"><strong>20 $</strong><span>/ mois</span></div><p>Accès complet à toute la plateforme.</p></div>
+          <div class="interval-toggle" role="group" aria-label="Durée de l'abonnement"><button type="button" class="active" data-interval="month">Mensuel · 20 $</button><button type="button" data-interval="year">Annuel · 200 $ <em>−17 %</em></button></div>
+          <div class="price-card compact"><div class="price"><strong data-price>20 $</strong><span data-price-unit>/ mois</span></div><p data-price-note>Accès complet à toute la plateforme.</p></div>
           <div class="auth-tabs" role="tablist"><button type="button" class="active" data-pay-tab="card">💳 Carte</button><button type="button" data-pay-tab="crypto">🪙 Crypto</button></div>
           <p class="auth-error" id="paywall-error" role="alert" hidden></p>
           <div id="pay-card">
