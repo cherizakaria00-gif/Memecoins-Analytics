@@ -921,5 +921,11 @@ export default {
 "Chercher $§ ↗": "Search $§ ↗",
 "· stop-loss": "· stop-loss",
 "· take-profit": "· take-profit",
-"Tweet": "Tweet"
+"Tweet": "Tweet",
+"+24 % depuis le départ": "+24% since the start",
+"3 positions ouvertes": "3 open positions",
+"25 trades clôturés": "25 closed trades",
+"18 gagnants · 7 perdants": "18 winners · 7 losers",
+"12 480 $": "$12,480",
+"pulse · dashboard": "pulse · dashboard"
 };

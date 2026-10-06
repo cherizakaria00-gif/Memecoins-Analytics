@@ -27,16 +27,37 @@
             <div class="land-actions"><button class="land-start big" type="button" data-open-auth="signup">Créer mon compte</button><a class="land-ghost" href="#tarif">Voir le tarif · 20 $/mois</a></div>
             <ul class="land-proof"><li>pump.fun + DexScreener</li><li>Sans seed phrase</li><li>Paiement carte ou crypto</li></ul>
           </div>
-          <div class="land-preview" aria-hidden="true">
-            <div class="preview-bar"><span></span><span></span><span></span><em>Aperçu illustratif</em></div>
-            <div class="preview-kpis"><div><small>Valeur simulée</small><b>1 248 $</b></div><div><small>Gagné</small><b class="up">+248 $</b></div><div><small>Signaux</small><b>7</b></div></div>
-            <div class="preview-rows">
-              <div class="pr qualified"><i class="pr-dot">A</i><b>$EXAMPLE</b><span>MC 84K</span><span>Liq 21K</span><em class="up">+38 %</em></div>
-              <div class="pr"><i class="pr-dot">B</i><b>$DEMO</b><span>MC 52K</span><span>Liq 14K</span><em class="up">+12 %</em></div>
-              <div class="pr"><i class="pr-dot">C</i><b>$SAMPLE</b><span>MC 31K</span><span>Liq 11K</span><em class="down">−6 %</em></div>
-              <div class="pr qualified"><i class="pr-dot">A</i><b>$TICKER</b><span>MC 126K</span><span>Liq 33K</span><em class="up">+21 %</em></div>
+          <div class="hero-stage" aria-hidden="true">
+            <div class="float-chip chip-a"><span class="chip-icon">↗</span><div><b>+38 %</b><small>Gain moyen</small></div></div>
+            <div class="demo-window">
+              <div class="demo-bar"><i></i><i></i><i></i><span class="demo-url">pulse · dashboard</span><em>Aperçu illustratif</em></div>
+              <div class="demo-body">
+                <div class="demo-nav"><b>Dashboard <u>3</u></b><span>Historique</span><span>Scanner</span><span>Nouveaux</span><span>Signaux qualifiés <u>4</u></span><span class="demo-mode"><b>TEST</b>LIVE</span></div>
+                <div class="demo-kpis">
+                  <div><small>Valeur totale</small><strong>12 480 $</strong><small>+24 % depuis le départ</small></div>
+                  <div><small>P&L latent</small><strong>+642 $</strong><small>3 positions ouvertes</small></div>
+                  <div><small>P&L réalisé</small><strong>+1 838 $</strong><small>25 trades clôturés</small></div>
+                  <div><small>Taux de réussite</small><strong>72 %</strong><small>18 gagnants · 7 perdants</small></div>
+                </div>
+                <div class="demo-row">
+                  <div class="demo-card demo-chart"><h4>Évolution du portefeuille</h4>
+                    <svg viewBox="0 0 400 130" preserveAspectRatio="none"><defs><linearGradient id="demo-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ade80" stop-opacity=".35"/><stop offset="1" stop-color="#4ade80" stop-opacity="0"/></linearGradient></defs>
+                      <path d="M0 108 L30 100 L55 104 L85 86 L115 90 L145 70 L175 74 L205 52 L235 58 L265 38 L300 44 L335 24 L365 28 L400 12 L400 130 L0 130Z" fill="url(#demo-fill)"/>
+                      <path d="M0 108 L30 100 L55 104 L85 86 L115 90 L145 70 L175 74 L205 52 L235 58 L265 38 L300 44 L335 24 L365 28 L400 12" fill="none" stroke="#4ade80" stroke-width="2.2" stroke-linejoin="round"/>
+                      <line x1="0" y1="96" x2="400" y2="96" stroke="#4ade80" stroke-opacity=".4" stroke-dasharray="3 4"/></svg></div>
+                  <div class="demo-card demo-alloc"><h4>Répartition</h4>
+                    <svg viewBox="0 0 120 120"><g fill="none" stroke-width="16" transform="rotate(-90 60 60)"><circle cx="60" cy="60" r="42" stroke="#1d2a22"/><circle cx="60" cy="60" r="42" stroke="#4ade80" stroke-dasharray="150 264"/><circle cx="60" cy="60" r="42" stroke="#22c55e" stroke-dasharray="62 264" stroke-dashoffset="-150"/><circle cx="60" cy="60" r="42" stroke="#bbf7d0" stroke-dasharray="40 264" stroke-dashoffset="-212"/></g></svg>
+                    <ul><li><i style="background:#4ade80"></i>Cash<b>57 %</b></li><li><i style="background:#22c55e"></i>$EXAMPLE<b>24 %</b></li><li><i style="background:#bbf7d0"></i>$DEMO<b>15 %</b></li></ul></div>
+                </div>
+                <div class="demo-positions">
+                  <div class="demo-pos"><b>$EXAMPLE</b><small>3h 12m · Aggressive</small><em>+38 %</em></div>
+                  <div class="demo-pos"><b>$DEMO</b><small>1h 48m · Normal</small><em>+21 %</em></div>
+                  <div class="demo-pos"><b>$SAMPLE</b><small>5h 02m · Aggressive</small><em>+12 %</em></div>
+                </div>
+              </div>
             </div>
-            <div class="preview-plan"><span>Entrée <b>0,0000412</b></span><span>Stop <b class="down">−25 %</b></span><span>Cibles <b class="up">+50 % · +100 %</b></span></div>
+            <div class="float-chip chip-b"><span class="chip-icon">◎</span><div><b>Scanner actif</b><small>pump.fun + DexScreener</small></div></div>
+            <div class="float-chip chip-c"><span class="chip-icon">★</span><div><b>7</b><small>Signaux qualifiés</small></div></div>
           </div>
         </section>
 

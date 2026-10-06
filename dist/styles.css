@@ -1000,3 +1000,32 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .lang-switch { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--muted); font: 600 .78rem Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .lang-switch:hover { color: var(--text); border-color: #5b676b; }
 .paywall-page .gate-brand { position: relative; } .paywall-page .gate-brand .lang-switch { position: absolute; right: 0; }
 .land-cta { align-items: center; }
+
+/* ---- Landing hero: 3D example dashboard ---- */
+.hero-stage { position: relative; perspective: 1700px; padding: 40px 10px 50px; }
+.hero-stage::before { content: ""; position: absolute; inset: 8% -6% 4% 2%; background: radial-gradient(60% 55% at 55% 50%, rgba(74, 222, 128, .22), transparent 70%); filter: blur(30px); }
+.demo-window { position: relative; transform: rotateY(-16deg) rotateX(7deg) rotateZ(1.2deg); transform-style: preserve-3d; border: 1px solid rgba(74, 222, 128, .35); border-radius: 16px; background: linear-gradient(160deg, #0f1814, #0a0f0c 60%); box-shadow: 0 40px 90px rgba(0, 0, 0, .65), 0 0 60px rgba(74, 222, 128, .16), inset 0 1px rgba(255, 255, 255, .05); overflow: visible; }
+.demo-window::before, .demo-window::after { content: ""; position: absolute; inset: 0; border: 1px solid rgba(74, 222, 128, .22); border-radius: 16px; background: rgba(15, 24, 18, .6); z-index: -1; }
+.demo-window::before { transform: translate3d(-18px, 14px, -40px); } .demo-window::after { transform: translate3d(-36px, 28px, -80px); opacity: .6; }
+.demo-bar { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid rgba(74, 222, 128, .15); } .demo-bar i { width: 9px; height: 9px; border-radius: 50%; background: #2d3a31; } .demo-bar i:nth-child(1) { background: #3f7f56; }
+.demo-url { margin-left: 10px; padding: 3px 14px; border-radius: 999px; background: #0b110d; color: #6b8a76; font: 500 .66rem ui-monospace, SFMono-Regular, Menlo, monospace; } .demo-bar em { margin-left: auto; color: #6b8a76; font-size: .64rem; font-style: normal; }
+.demo-body { padding: 12px 14px 16px; display: grid; gap: 10px; font-size: .7rem; }
+.demo-nav { display: flex; align-items: center; gap: 12px; color: #8aa293; font-size: .64rem; white-space: nowrap; overflow: hidden; } .demo-nav > b { color: #e8f5ec; padding-bottom: 5px; border-bottom: 2px solid #4ade80; } .demo-nav u { text-decoration: none; color: #4ade80; }
+.demo-mode { margin-left: auto; padding: 3px 4px; border-radius: 999px; background: #0b110d; border: 1px solid rgba(74, 222, 128, .2); } .demo-mode b { margin-right: 8px; padding: 2px 8px; border-radius: 999px; background: #1c2b22; color: #e8f5ec; }
+.demo-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; } .demo-kpis div, .demo-card, .demo-pos { padding: 10px; border: 1px solid rgba(74, 222, 128, .16); border-radius: 10px; background: rgba(12, 20, 15, .85); }
+.demo-kpis small { display: block; color: #7f9a89; font-size: .58rem; } .demo-kpis strong { display: block; margin: 3px 0; color: #4ade80; font: 700 1rem ui-monospace, SFMono-Regular, Menlo, monospace; text-shadow: 0 0 18px rgba(74, 222, 128, .45); }
+.demo-row { display: grid; grid-template-columns: 1.7fr 1fr; gap: 8px; } .demo-card h4 { margin: 0 0 6px; font-size: .68rem; color: #e8f5ec; } .demo-chart svg { width: 100%; height: 96px; display: block; }
+.demo-alloc { display: grid; grid-template-columns: 70px 1fr; gap: 4px 10px; align-items: center; } .demo-alloc h4 { grid-column: 1 / -1; margin: 0; } .demo-alloc svg { width: 70px; height: 70px; } .demo-alloc ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: .6rem; color: #b6c8bd; } .demo-alloc li { display: flex; align-items: center; gap: 5px; } .demo-alloc li i { width: 7px; height: 7px; border-radius: 50%; } .demo-alloc li b { margin-left: auto; color: #e8f5ec; }
+.demo-positions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .demo-pos { display: grid; gap: 2px; position: relative; } .demo-pos b { font-size: .72rem; } .demo-pos small { color: #7f9a89; font-size: .58rem; } .demo-pos em { position: absolute; top: 8px; right: 8px; padding: 2px 7px; border-radius: 6px; background: #12301d; color: #4ade80; font-size: .62rem; font-style: normal; font-weight: 700; }
+.float-chip { position: absolute; z-index: 3; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid rgba(74, 222, 128, .35); border-radius: 14px; background: rgba(10, 18, 13, .88); backdrop-filter: blur(8px); box-shadow: 0 18px 40px rgba(0, 0, 0, .5), 0 0 30px rgba(74, 222, 128, .14); animation: chipFloat 6s ease-in-out infinite; }
+.float-chip b { display: block; font-size: 1rem; } .float-chip small { display: block; color: #8aa293; font-size: .64rem; } .chip-icon { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: #12301d; color: #4ade80; font-weight: 800; }
+.chip-a { top: 0; left: -4%; } .chip-b { right: -2%; top: 46%; animation-delay: -2s; } .chip-c { left: 6%; bottom: 0; animation-delay: -4s; }
+@keyframes chipFloat { 50% { transform: translateY(-10px); } }
+@media (prefers-reduced-motion: reduce) { .float-chip { animation: none; } }
+@media (max-width: 900px) { .demo-window { transform: rotateY(-6deg) rotateX(3deg); } .hero-stage { padding: 30px 0 40px; } .demo-kpis { grid-template-columns: repeat(2, 1fr); } .chip-a { left: 0; } .chip-b { right: 0; } .demo-nav span:nth-child(n+4) { display: none; } }
+@media (max-width: 480px) { .demo-row { grid-template-columns: 1fr; } .demo-positions .demo-pos:nth-child(3) { display: none; } .float-chip.chip-c { display: none; } }
+.land-hero { grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 28px; }
+.hero-stage { margin-right: -40px; } .demo-body { font-size: .78rem; } .demo-kpis strong { font-size: 1.12rem; } .demo-nav { font-size: .7rem; } .demo-chart svg { height: 110px; } .demo-alloc { grid-template-columns: 78px 1fr; } .demo-alloc svg { width: 78px; height: 78px; } .demo-alloc ul { font-size: .66rem; }
+.chip-b { top: auto; bottom: 14%; right: -3%; }
+@media (max-width: 900px) { .hero-stage { margin-right: 0; } }
+.chip-b { bottom: -2%; right: 6%; }
