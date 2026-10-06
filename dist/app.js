@@ -3,7 +3,7 @@ import { createCoinChart } from "./coin-chart.js";
 import { createEquityChart } from "./equity-chart.js";
 import { addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "./dashboard.js";
 import { base58Encode, base64ToBytes, costBasis, describeOrder, lamportsToSol, limitBreach, orderPrioritySol, positionValue as livePositionValue, rawFraction, rawToUi, upsertOrder } from "./live.js";
-import { DEFAULT_BOT, botPnlToday, botStats, normalizeBot, pickEntries } from "./autobot.js";
+import { DEFAULT_BOT, botPnlToday, botStats, normalizeBot, normalizePending, pickEntries } from "./autobot.js";
 import { buildTradePlan, exitAdvice, planPercents } from "./trade-plan.js";
 import { detectWallets, iconForName, removeWallet, shortAddress, toAddress, totalSol, upsertWallet } from "./wallets.js";
 import { FEE_PRESETS, START_BALANCE, buildTradeMarkers, costsFor, presetById, presetForCapital, checkTriggers, normalizeWallet, sellFraction, openPosition, positionValue, pushHistory, quoteBuy, summarizeHistory, validateBuy } from "./paper-trading.js";
@@ -2602,7 +2602,7 @@ async function setMode(mode) {
   state.mode = mode;
   try { localStorage.setItem("pulse-mode", mode); } catch { /* storage unavailable */ }
   applyMode();
-  if (mode === "live" && bot.config.enabled) { bot.config.enabled = false; botLog("Bot désactivé : passage en mode LIVE."); saveBot(); }
+  if (mode === "live" && bot.config.enabled) { bot.config.enabled = false; bot.pending = []; botLog("Bot désactivé : passage en mode LIVE."); saveBot(); }
   renderBot();
   showToast(mode === "live" ? "Mode LIVE activé : les ordres sont réels." : "Mode TEST : portefeuille de simulation.");
 }
@@ -2936,13 +2936,14 @@ window.addEventListener("pulse-wallets-changed", () => { if (liveActive()) refre
 applyMode();
 
 /* ---- Auto-trade bot (TEST mode): fixed entry size and exit percentages ---- */
-const BOT_FIELDS = ["minScore", "sizePct", "maxAmount", "stopLossPct", "takeProfitPct", "maxOpen", "dailyLossPct", "cooldownHours"];
+const BOT_FIELDS = ["minScore", "sizePct", "maxAmount", "stopLossPct", "takeProfitPct", "entryDipPct", "orderTimeoutMin", "maxOpen", "dailyLossPct", "cooldownHours"];
 const BOT_LOG_LIMIT = 40;
 function loadBot() { try { return normalizeBot(JSON.parse(localStorage.getItem("pulse-bot") || "null")); } catch { return normalizeBot(null); } }
 function loadBotLog() { try { const log = JSON.parse(localStorage.getItem("pulse-bot-log") || "[]"); return Array.isArray(log) ? log.filter(item => item && typeof item.text === "string").slice(0, BOT_LOG_LIMIT) : []; } catch { return []; } }
-const bot = { config: loadBot(), log: loadBotLog(), entries: {} };
+function loadBotPending() { try { return normalizePending(JSON.parse(localStorage.getItem("pulse-bot-pending") || "[]")); } catch { return []; } }
+const bot = { config: loadBot(), log: loadBotLog(), pending: loadBotPending(), entries: {} };
 function saveBot() {
-  try { localStorage.setItem("pulse-bot", JSON.stringify(bot.config)); localStorage.setItem("pulse-bot-log", JSON.stringify(bot.log)); } catch { /* storage unavailable */ }
+  try { localStorage.setItem("pulse-bot", JSON.stringify(bot.config)); localStorage.setItem("pulse-bot-log", JSON.stringify(bot.log)); localStorage.setItem("pulse-bot-pending", JSON.stringify(bot.pending)); } catch { /* storage unavailable */ }
 }
 function botLog(text) { bot.log.unshift({ at: Date.now(), text }); bot.log = bot.log.slice(0, BOT_LOG_LIMIT); }
 
@@ -2950,9 +2951,13 @@ function runBot() {
   if (state.mode === "live" || !bot.config.enabled || !tokens.length || !state.market.live) return;
   for (const position of state.positions) if (position.auto && position.openedAt) bot.entries[position.tokenId] = Math.max(bot.entries[position.tokenId] ?? 0, position.openedAt);
   for (const trade of state.history) if (trade.auto) bot.entries[trade.tokenId] = Math.max(bot.entries[trade.tokenId] ?? 0, trade.openedAt ?? 0);
-  const { buys, paused } = pickEntries({ tokens, positions: state.positions, history: state.history, balance: state.balance, startBalance: START_BALANCE, config: bot.config, lastEntries: bot.entries, isQualified });
+  const { buys, pending, expired, placed, paused } = pickEntries({ tokens, positions: state.positions, history: state.history, balance: state.balance, startBalance: START_BALANCE, config: bot.config, lastEntries: bot.entries, pending: bot.pending, isQualified });
   bot.paused = paused;
-  for (const { token, amount, score, source } of buys) {
+  bot.pending = pending;
+  const priceText = value => `$${value.toLocaleString(locale, { maximumSignificantDigits: 4 })}`;
+  for (const order of expired) botLog(`Ordre limite expiré · $${order.symbol} (le prix n'est pas descendu à ${priceText(order.limitPrice)})`);
+  for (const order of placed) botLog(`Ordre limite · $${order.symbol} à ${priceText(order.limitPrice)} (−${bot.config.entryDipPct} %) · valable ${bot.config.orderTimeoutMin} min`);
+  for (const { token, amount, score, source, limit } of buys) {
     const preset = activePreset(amount);
     const costs = costsFor(preset, currentSolUsd());
     if (validateBuy(token, amount, state.balance, { preset, costs })) continue;
@@ -2960,10 +2965,10 @@ function runBot() {
     const position = { ...openPosition(token, amount, { costs, preset, stopLossPct: bot.config.stopLossPct, takeProfitPct: bot.config.takeProfitPct }), auto: true };
     state.positions.unshift(position);
     bot.entries[token.id] = position.openedAt;
-    botLog(`Achat ${formatMoney(amount)} · $${token.symbol} (${source === "early" ? "⚡ démarrage" : "qualifié"}, score ${score}) · SL −${bot.config.stopLossPct} % · TP +${bot.config.takeProfitPct} %`);
+    botLog(`Achat ${formatMoney(amount)} · $${token.symbol} (${source === "early" ? "⚡ démarrage" : "qualifié"}, score ${score})${limit ? ` sur repli à ${priceText(limit)}` : ""} · SL −${bot.config.stopLossPct} % · TP +${bot.config.takeProfitPct} %`);
     notify({ type: "entry", tokenId: token.id, title: `Bot : achat · $${token.symbol}`, body: `${formatMoney(amount)} · SL −${bot.config.stopLossPct} % · TP +${bot.config.takeProfitPct} %` });
   }
-  if (buys.length) { saveBot(); renderPositions(); }
+  if (buys.length || expired.length || placed.length) { saveBot(); if (buys.length) renderPositions(); }
   renderBot();
 }
 
@@ -2985,6 +2990,9 @@ function renderBot() {
   const status = document.querySelector("#bot-status");
   status.className = `bot-status ${bot.paused === "daily-loss" ? "warn" : ""}`;
   status.textContent = (bot.paused === "daily-loss" ? "⏸ Perte maximale du jour atteinte : le bot reprend demain. · " : "") + parts.join(" · ");
+  document.querySelector("#bot-pending").innerHTML = bot.pending.length
+    ? `<strong>Ordres limites en attente</strong>${bot.pending.map(order => `<div><span>$${esc(order.symbol)} · achat à $${order.limitPrice.toLocaleString(locale, { maximumSignificantDigits: 4 })}</span><small>expire dans ${Math.max(0, Math.ceil((order.expiresAt - Date.now()) / 60_000))} min</small></div>`).join("")}`
+    : "";
   document.querySelector("#bot-log").innerHTML = bot.log.length
     ? bot.log.slice(0, 8).map(item => `<div><time>${new Date(item.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span>${esc(item.text)}</span></div>`).join("")
     : '<div class="muted">Aucune action pour le moment.</div>';
@@ -2993,6 +3001,7 @@ function renderBot() {
 document.querySelector("#bot-enabled").addEventListener("change", event => {
   if (state.mode === "live") { event.target.checked = false; showToast("Le bot ne trade qu'en mode TEST : en LIVE, tu signes chaque ordre."); return; }
   bot.config.enabled = event.target.checked;
+  if (!bot.config.enabled) bot.pending = [];
   botLog(bot.config.enabled ? "Bot activé." : "Bot désactivé.");
   saveBot(); renderBot();
   if (bot.config.enabled) runBot();

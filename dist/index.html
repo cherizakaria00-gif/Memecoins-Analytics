@@ -81,6 +81,7 @@
               <p class="land-note">Fixe une fois ton entrée et tes sorties : le bot achète les signaux qui respectent tes critères, puis sort tout seul au stop-loss ou au take-profit.</p>
               <ul class="bot-points">
                 <li><b>Entrée fixe</b> : un pourcentage de ton solde par trade, avec un plafond.</li>
+                <li><b>Entrée sur repli</b> : au lieu d'acheter au sommet, un ordre limite attend un recul (−3 % par défaut) sous le prix du signal.</li>
                 <li><b>Sorties fixes</b> : stop-loss et take-profit en pourcentage, appliqués à chaque position.</li>
                 <li><b>Garde-fous</b> : nombre de positions limité, pas de ré-entrée immédiate et perte maximale par jour.</li>
                 <li><b>Signaux au choix</b> : qualifiés, démarrages ⚡ ou les deux, avec un score minimum.</li>
@@ -547,11 +548,14 @@
               <label>Montant max par trade ($)<input id="bot-maxAmount" type="number" min="10" step="10" /></label>
               <label>Stop-loss (%)<input id="bot-stopLossPct" type="number" min="1" max="90" step="1" /></label>
               <label>Take-profit (%)<input id="bot-takeProfitPct" type="number" min="1" max="1000" step="1" /></label>
+              <label>Entrée sur repli (%)<input id="bot-entryDipPct" type="number" min="0" max="30" step="0.5" title="0 = achat immédiat. Sinon le bot place un ordre limite à ce pourcentage sous le prix du signal." /></label>
+              <label>Validité de l'ordre (min)<input id="bot-orderTimeoutMin" type="number" min="1" max="720" step="1" /></label>
               <label>Positions bot max<input id="bot-maxOpen" type="number" min="1" max="20" step="1" /></label>
               <label>Perte max par jour (% du capital)<input id="bot-dailyLossPct" type="number" min="0.5" max="100" step="0.5" /></label>
               <label>Pas de ré-entrée avant (h)<input id="bot-cooldownHours" type="number" min="0" max="168" step="1" /></label>
             </div>
             <div class="bot-status" id="bot-status"></div>
+            <div class="bot-pending" id="bot-pending"></div>
             <div class="bot-log" id="bot-log"></div>
             <p class="bot-warning">Le bot n'améliore pas les signaux : il applique mécaniquement les mêmes règles. Regarde la fiabilité des signaux dans le Scanner (taux de démarrages à +50 % et à −25 %) avant de lui faire confiance, et garde la perte max par jour basse. Une simulation ne garantit rien en réel.</p>
           </section>

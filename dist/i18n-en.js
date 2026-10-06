@@ -1006,5 +1006,16 @@ export default {
 "Compte invalide": "Invalid account",
 "PLATFORM_FEE_ACCOUNT est invalide (§) : la commission est désactivée tant que tu ne le corriges pas dans le fichier .env.": "PLATFORM_FEE_ACCOUNT is invalid (§): the commission is disabled until you fix it in the .env file.",
 "compte introuvable sur la blockchain": "account not found on the blockchain",
-"ce n'est pas un compte de jetons SOL wrappé (wSOL)": "it is not a wrapped-SOL (wSOL) token account"
+"ce n'est pas un compte de jetons SOL wrappé (wSOL)": "it is not a wrapped-SOL (wSOL) token account",
+"Entrée sur repli (%)": "Entry on pullback (%)",
+"Validité de l'ordre (min)": "Order validity (min)",
+"Ordres limites en attente": "Pending limit orders",
+"0 = achat immédiat. Sinon le bot place un ordre limite à ce pourcentage sous le prix du signal.": "0 = buy immediately. Otherwise the bot places a limit order at this percentage below the signal price.",
+"Ordre limite expiré · $§ (le prix n'est pas descendu à §)": "Limit order expired · $§ (the price did not drop to §)",
+"Ordre limite · $§ à § (−§ %) · valable § min": "Limit order · $§ at § (−§%) · valid § min",
+"Achat § · $§ (§, score §) sur repli à § · SL −§ % · TP +§ %": "Buy § · $§ (§, score §) on pullback at § · SL −§% · TP +§%",
+"$§ · achat à $§": "$§ · buy at $§",
+"expire dans § min": "expires in § min",
+"Entrée sur repli": "Entry on pullback",
+": au lieu d'acheter au sommet, un ordre limite attend un recul (−3 % par défaut) sous le prix du signal.": ": instead of buying at the top, a limit order waits for a pullback (−3% by default) below the signal price."
 };

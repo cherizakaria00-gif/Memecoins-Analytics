@@ -1069,3 +1069,4 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .result-row.enter { animation: rowIn .6s ease-out; } @keyframes rowIn { from { opacity: 0; transform: translateY(-14px); background: rgba(74, 222, 128, .14); } to { opacity: 1; transform: none; background: transparent; } }
 .result-row.loss em { color: #f87171; }
 .plan-fee { margin: -12px 0 18px; color: #9fc9ae; font-size: .76rem; line-height: 1.5; } .plan-fee[hidden] { display: none; }
+.bot-pending { margin-top: 10px; display: grid; gap: 4px; font-size: .76rem; color: #b6c8bd; } .bot-pending:empty { display: none; } .bot-pending strong { color: var(--text); font-size: .74rem; } .bot-pending div { display: flex; justify-content: space-between; gap: 10px; } .bot-pending small { color: var(--muted); }
