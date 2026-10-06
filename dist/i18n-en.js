@@ -927,5 +927,10 @@ export default {
 "25 trades clôturés": "25 closed trades",
 "18 gagnants · 7 perdants": "18 winners · 7 losers",
 "12 480 $": "$12,480",
-"pulse · dashboard": "pulse · dashboard"
+"pulse · dashboard": "pulse · dashboard",
+"RÉSULTATS": "RESULTS",
+"Résultats": "Results",
+"Trades récents sur la plateforme": "Recent trades on the platform",
+"Exemples de trades clôturés dans le simulateur (paper trading) de Pulse : stop-loss et take-profit automatiques, frais et slippage inclus.": "Examples of trades closed in Pulse's simulator (paper trading): automatic stop-loss and take-profit, fees and slippage included.",
+"Résultats simulés, présentés à titre d'exemple : ce ne sont ni des avis clients ni des performances réelles. Une sélection de trades gagnants ne montre pas les pertes, qui existent aussi. Aucun résultat futur n'est garanti.": "Simulated results, shown as examples: they are neither customer reviews nor real performance. A selection of winning trades does not show the losses, which also happen. No future result is guaranteed."
 };
