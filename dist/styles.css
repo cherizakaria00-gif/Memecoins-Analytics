@@ -1059,3 +1059,9 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .bot-mock-status { margin-top: 14px; padding: 9px 12px; border-radius: 8px; background: #0c1710; border: 1px solid #1f3a2a; color: #bbf7d0; font-size: .74rem; }
 @media (max-width: 900px) { .bot-showcase { grid-template-columns: 1fr; } .bot-mock { transform: none; } .bot-mock-grid { grid-template-columns: repeat(2, 1fr); } }
 .mock-tag { float: right; color: #6b8a76; font-size: .64rem; font-style: normal; }
+.mock-switch { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; } .mock-switch:focus-visible { outline: 2px solid var(--acid); outline-offset: 4px; border-radius: 999px; }
+.mock-switch i, .mock-switch i::after { transition: background .2s, right .2s, transform .2s; } .mock-switch i::after { right: 3px; }
+.bot-mock.is-off { border-color: #6b2a28; background: linear-gradient(180deg, #1c1010, #120b0b); box-shadow: 0 30px 70px rgba(0,0,0,.5), 0 0 50px rgba(248, 113, 113, .12); }
+.bot-mock.is-off .mock-switch { color: #f87171; } .bot-mock.is-off .mock-switch i { background: #ef4444; } .bot-mock.is-off .mock-switch i::after { right: 21px; }
+.bot-mock.is-off .bot-mock-grid, .bot-mock.is-off .bot-mock-log { opacity: .45; } .bot-mock.is-off .bot-mock-status { background: #1c0f0f; border-color: #6b2a28; color: #fca5a5; }
+.bot-mock-status, .bot-mock, .bot-mock-grid, .bot-mock-log { transition: opacity .2s, background .2s, border-color .2s, box-shadow .2s; }

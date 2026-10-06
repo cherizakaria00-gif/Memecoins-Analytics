@@ -58,6 +58,15 @@ function setInterval_(next) {
 }
 document.querySelectorAll("[data-interval]").forEach(button => button.addEventListener("click", () => setInterval_(button.dataset.interval)));
 
+/* ---- Landing: the example bot card can be switched on and off ---- */
+$("#mock-switch").addEventListener("click", event => {
+  const button = event.currentTarget;
+  const on = button.getAttribute("aria-checked") !== "true";
+  button.setAttribute("aria-checked", String(on));
+  $("#mock-switch-label").textContent = on ? "Actif" : "Désactivé";
+  $("#bot-mock").classList.toggle("is-off", !on);
+});
+
 /* ---- Legal modal ---- */
 const legal = $("#legal-modal");
 document.querySelectorAll("[data-open-legal]").forEach(button => button.addEventListener("click", () => { legal.hidden = false; }));
