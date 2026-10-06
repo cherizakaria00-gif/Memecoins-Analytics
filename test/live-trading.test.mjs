@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { LiveTradingError, SOL_MINT, getPortfolio, getSignatureState, liveConfig, parseOrder, prepareSwap } from "../src/live-trading.mjs";
+import { LiveTradingError, SOL_MINT, checkFeeAccount, getPortfolio, getSignatureState, liveConfig, parseOrder, prepareSwap } from "../src/live-trading.mjs";
 
 const USER = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
 const MINT = "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263";
@@ -82,4 +82,54 @@ test("reports the state of a transaction signature", async () => {
   assert.deepEqual(await getSignatureState(signature, { config, fetchImpl: respond({ confirmationStatus: "confirmed", err: null }) }), { state: "confirmed" });
   assert.equal((await getSignatureState(signature, { config, fetchImpl: respond({ err: { InstructionError: [0, "Custom"] } }) })).state, "failed");
   await assert.rejects(getSignatureState("short", { config }), LiveTradingError);
+});
+
+const FEE_ACCOUNT = "HBfXgJgBY9tJvDkxk3kxvhsFSWuyqiL2c8s7spPmdYhk";
+const feeConfig = { ...config, platformFeeBps: 50, platformFeeAccount: FEE_ACCOUNT };
+
+test("the platform commission is configured from the environment and inactive without a valid account", () => {
+  assert.equal(liveConfig({}).platformFeeBps, 0);
+  assert.equal(liveConfig({ PLATFORM_FEE_ACCOUNT: "nope" }).platformFeeAccount, null);
+  const active = liveConfig({ PLATFORM_FEE_ACCOUNT: FEE_ACCOUNT });
+  assert.deepEqual([active.platformFeeBps, active.platformFeeAccount], [50, FEE_ACCOUNT]);
+  assert.equal(liveConfig({ PLATFORM_FEE_ACCOUNT: FEE_ACCOUNT, PLATFORM_FEE_BPS: "25" }).platformFeeBps, 25);
+  assert.equal(liveConfig({ PLATFORM_FEE_ACCOUNT: FEE_ACCOUNT, PLATFORM_FEE_BPS: "500" }).platformFeeBps, 0, "above 1 %: refused");
+  assert.equal(liveConfig({ PLATFORM_FEE_ACCOUNT: FEE_ACCOUNT, PLATFORM_FEE_BPS: "0" }).platformFeeBps, 0);
+});
+
+test("a sell carries the 0.5 % commission (paid in SOL) and reports it; buys pay none; Jupiter refusing it falls back to no commission", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    calls.push({ url: String(url), body: options.body ? JSON.parse(options.body) : null });
+    if (String(url).includes("/quote")) {
+      const withFee = String(url).includes("platformFeeBps=50");
+      return { ok: true, json: async () => ({ inAmount: "500000000", outAmount: "9000", otherAmountThreshold: "8500", priceImpactPct: "0.01", routePlan: [], ...(withFee ? { platformFee: { amount: "2500000", feeBps: 50 } } : {}) }) };
+    }
+    return { ok: true, json: async () => ({ swapTransaction: "dHg=", lastValidBlockHeight: 1 }) };
+  };
+  const sell = { side: "sell", mint: MINT, userPublicKey: USER, amountRaw: "123456789", slippageBps: 1500, prioritySol: 0 };
+  assert.equal((await prepareSwap(buy, { config: feeConfig, fetchImpl })).summary.platformFee, null, "the fee is in the output token: buys pay none");
+  calls.length = 0;
+  const prepared = await prepareSwap(sell, { config: feeConfig, fetchImpl });
+  assert.deepEqual(prepared.summary.platformFee, { bps: 50, lamports: 2_500_000 });
+  assert.equal(calls[1].body.feeAccount, FEE_ACCOUNT);
+  assert.equal((await prepareSwap(sell, { config, fetchImpl })).summary.platformFee, null, "no account configured: no commission");
+
+  const refusing = async (url, options = {}) => {
+    if (String(url).endsWith("/swap") && JSON.parse(options.body).feeAccount) return { ok: false, json: async () => ({ error: "fee account mint mismatch" }) };
+    return fetchImpl(url, options);
+  };
+  const fallback = await prepareSwap(sell, { config: feeConfig, fetchImpl: refusing });
+  assert.equal(fallback.summary.platformFee, null);
+  assert.equal(fallback.transaction, "dHg=");
+});
+
+test("the fee account must be an existing wrapped-SOL token account", async () => {
+  const respond = value => async () => ({ ok: true, json: async () => ({ result: { value } }) });
+  const wsol = { data: { parsed: { info: { mint: SOL_MINT } } } };
+  assert.equal(await checkFeeAccount({ config: feeConfig, fetchImpl: respond(wsol) }), null);
+  assert.match(await checkFeeAccount({ config: feeConfig, fetchImpl: respond(null) }), /introuvable/);
+  assert.match(await checkFeeAccount({ config: feeConfig, fetchImpl: respond({ data: { parsed: { info: { mint: MINT } } } }) }), /wSOL/);
+  assert.equal(await checkFeeAccount({ config, fetchImpl: respond(null) }), null, "no account configured: nothing to check");
+  assert.equal(await checkFeeAccount({ config: feeConfig, fetchImpl: async () => { throw new Error("offline"); } }), null, "RPC failure does not disable the fee");
 });

@@ -50,6 +50,7 @@ export function describeOrder(summary, { decimals = 6, symbol = "TOKEN", solUsd 
     pay: buy ? { amount: sol, unit: "SOL", usd: sol * solUsd } : { amount: tokens, unit: `$${symbol}` },
     receive: buy ? { amount: tokens, unit: `$${symbol}`, min: minTokens } : { amount: sol, unit: "SOL", usd: sol * solUsd, min: minSol },
     priceImpactPct: summary.priceImpactPct, slippagePct: summary.slippageBps / 100, priorityFeeSol, routes: summary.routes ?? [],
+    platformFee: summary.platformFee ? { pct: summary.platformFee.bps / 100, sol: lamportsToSol(summary.platformFee.lamports), usd: lamportsToSol(summary.platformFee.lamports) * solUsd } : null,
     blocking: Boolean(summary.simulationError), warnings
   };
 }

@@ -1068,3 +1068,4 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .results-live { display: inline-flex; align-items: center; gap: 8px; margin: -6px 0 12px; color: #86efac; font-size: .74rem; font-weight: 600; } .results-live i { width: 7px; height: 7px; border-radius: 50%; background: var(--acid); box-shadow: 0 0 0 4px rgba(184, 245, 93, .18); animation: pulseDot 1.6s ease-in-out infinite; }
 .result-row.enter { animation: rowIn .6s ease-out; } @keyframes rowIn { from { opacity: 0; transform: translateY(-14px); background: rgba(74, 222, 128, .14); } to { opacity: 1; transform: none; background: transparent; } }
 .result-row.loss em { color: #f87171; }
+.plan-fee { margin: -12px 0 18px; color: #9fc9ae; font-size: .76rem; line-height: 1.5; } .plan-fee[hidden] { display: none; }

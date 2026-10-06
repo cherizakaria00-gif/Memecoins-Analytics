@@ -34,7 +34,7 @@ for (const [french, english] of Object.entries(dictionary)) {
   const literals = french.split("§");
   const anchor = literals.reduce((longest, part) => (part.length > longest.length ? part : longest), "");
   // Short patterns ("§ min") would swallow any sentence ending the same way: restrict what they may capture.
-  const capture = french.startsWith("§") && literals.join("").replace(/[^A-Za-zÀ-ÿ]/g, "").length < 8 ? "([^\\s·]+)" : "(.*?)";
+  const capture = french.startsWith("§") && literals.join("").replace(/[^A-Za-zÀ-ÿ]/g, "").length < 8 ? "([^\\s·]*)" : "(.*?)";
   patterns.push({ regex: new RegExp(`^${literals.map(escapeRegex).join(capture)}$`, "s"), english, anchor });
 }
 patterns.sort((a, b) => b.anchor.length - a.anchor.length);

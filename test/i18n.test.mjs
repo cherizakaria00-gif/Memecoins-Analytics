@@ -45,3 +45,8 @@ test("every dictionary entry is English-ready: placeholders line up and nothing 
 test("the UI files use the shared locale instead of a hard-coded one", () => {
   for (const file of ["app.js", "admin.js", "gate.js", "equity-chart.js"]) assert.doesNotMatch(readFileSync(new URL(`../dist/${file}`, import.meta.url), "utf8"), /"fr-FR"/, file);
 });
+
+test("plural suffix patterns accept an empty suffix", () => {
+  assert.equal(translate("0 ouverte"), "0 open");
+  assert.equal(translate("2 ouvertes"), "2 open");
+});

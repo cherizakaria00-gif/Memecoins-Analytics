@@ -2728,6 +2728,7 @@ function openConfirm(prepared, body, meta) {
       <div><span>Impact de prix</span><strong class="${(details.priceImpactPct ?? 0) > 5 ? "negative" : ""}">${details.priceImpactPct == null ? "—" : `${details.priceImpactPct.toFixed(2)} %`}</strong></div>
       <div><span>Slippage maximum</span><strong>${details.slippagePct} %</strong></div>
       <div><span>Frais de priorité</span><strong>${solText2(details.priorityFeeSol, 4)}</strong></div>
+      ${details.platformFee ? `<div><span>Frais Pulse (${details.platformFee.pct.toLocaleString(locale)} %)</span><strong>${solText2(details.platformFee.sol, 5)}${details.platformFee.usd ? ` <small>≈ ${formatMoney(details.platformFee.usd, 2)}</small>` : ""}</strong></div>` : ""}
       <div><span>Route</span><strong>${esc(details.routes.join(" → ") || "—")}</strong></div>
       <div><span>Wallet</span><strong>${esc(wallet.name)} · ${esc(shortAddress(wallet.address))}</strong></div>
     </div>
@@ -2768,7 +2769,8 @@ function recordOrder(signature, prepared, body, meta, wallet) {
   const buy = body.side === "buy";
   const order = {
     id: signature, wallet: wallet.address, side: body.side, mint: body.mint, symbol: meta.symbol, name: meta.name, decimals: meta.decimals, ts: Date.now(), state: "pending",
-    solLamports: buy ? summary.inAmount : summary.outAmount, outRaw: buy ? summary.outAmount : null, inRaw: buy ? null : summary.inAmount, impact: summary.priceImpactPct
+    solLamports: buy ? summary.inAmount : summary.outAmount, outRaw: buy ? summary.outAmount : null, inRaw: buy ? null : summary.inAmount, impact: summary.priceImpactPct,
+    feeId: summary.orderId ?? null
   };
   state.live.orders = upsertOrder(state.live.orders, order);
   saveJson("pulse-live-orders", state.live.orders);
@@ -2780,7 +2782,7 @@ async function trackOrder(signature, attempt = 0) {
   const order = state.live.orders.find(item => item.id === signature);
   if (!order || order.state === "confirmed" || order.state === "finalized" || order.state === "failed") return;
   try {
-    const response = await fetch(`/api/live/status?signature=${encodeURIComponent(signature)}`, { headers: { accept: "application/json" } });
+    const response = await fetch(`/api/live/status?signature=${encodeURIComponent(signature)}${order.feeId ? `&order=${encodeURIComponent(order.feeId)}` : ""}`, { headers: { accept: "application/json" } });
     const { state: next, error } = response.ok ? await response.json() : { state: "pending" };
     if (next !== "pending") {
       order.state = next;

@@ -13,6 +13,14 @@ export class LiveTradingError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
 
+/** Pulse's commission on LIVE sells: PLATFORM_FEE_BPS (default 50 = 0.5 %) paid into PLATFORM_FEE_ACCOUNT, a wrapped-SOL token account. Inactive without a valid account. */
+function platformFee(env) {
+  const bps = Number(env.PLATFORM_FEE_BPS ?? 50);
+  const account = env.PLATFORM_FEE_ACCOUNT?.trim();
+  const active = Number.isFinite(bps) && bps > 0 && bps <= 100 && isValidSolanaAddress(account);
+  return { platformFeeBps: active ? Math.round(bps) : 0, platformFeeAccount: active ? account : null };
+}
+
 export function liveConfig(env = process.env) {
   const cap = Number(env.LIVE_MAX_ORDER_SOL);
   return {
@@ -20,7 +28,8 @@ export function liveConfig(env = process.env) {
     maxOrderSol: Number.isFinite(cap) && cap > 0 ? cap : 5,
     jupiterUrl: (env.JUPITER_API_URL || DEFAULT_JUPITER_URL).replace(/\/+$/, ""),
     jupiterKey: env.JUPITER_API_KEY || null,
-    rpcUrl: env.SOLANA_RPC_URL || DEFAULT_RPC_URL
+    rpcUrl: env.SOLANA_RPC_URL || DEFAULT_RPC_URL,
+    ...platformFee(env)
   };
 }
 
@@ -62,19 +71,37 @@ export async function prepareSwap(input, { config = liveConfig(), fetchImpl = fe
   const headers = { accept: "application/json", ...(config.jupiterKey ? { "x-api-key": config.jupiterKey } : {}) };
   const [inputMint, outputMint] = order.side === "buy" ? [SOL_MINT, order.mint] : [order.mint, SOL_MINT];
 
-  const quoteUrl = `${config.jupiterUrl}/quote?${new URLSearchParams({ inputMint, outputMint, amount: order.amount, slippageBps: String(order.slippageBps), swapMode: "ExactIn" })}`;
-  const quoteResponse = await fetchImpl(quoteUrl, { headers, signal: AbortSignal.timeout(10_000) });
-  const quote = await quoteResponse.json();
-  if (!quoteResponse.ok || quote?.error || !quote?.outAmount) throw new LiveTradingError(`Aucune route trouvée pour cet ordre${quote?.error ? ` (${String(quote.error).slice(0, 120)})` : ""}.`, 422);
+  const fetchQuote = async withFee => {
+    const params = { inputMint, outputMint, amount: order.amount, slippageBps: String(order.slippageBps), swapMode: "ExactIn", ...(withFee ? { platformFeeBps: String(config.platformFeeBps) } : {}) };
+    const response = await fetchImpl(`${config.jupiterUrl}/quote?${new URLSearchParams(params)}`, { headers, signal: AbortSignal.timeout(10_000) });
+    const quote = await response.json();
+    if (!response.ok || quote?.error || !quote?.outAmount) throw new LiveTradingError(`Aucune route trouvée pour cet ordre${quote?.error ? ` (${String(quote.error).slice(0, 120)})` : ""}.`, 422);
+    return quote;
+  };
+  const buildSwap = async (quote, withFee) => {
+    const response = await fetchImpl(`${config.jupiterUrl}/swap`, {
+      method: "POST",
+      headers: { ...headers, "content-type": "application/json" },
+      body: JSON.stringify({ quoteResponse: quote, userPublicKey: order.userPublicKey, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: order.priorityLamports, ...(withFee ? { feeAccount: config.platformFeeAccount } : {}) }),
+      signal: AbortSignal.timeout(12_000)
+    });
+    return { response, swap: await response.json() };
+  };
 
-  const swapResponse = await fetchImpl(`${config.jupiterUrl}/swap`, {
-    method: "POST",
-    headers: { ...headers, "content-type": "application/json" },
-    body: JSON.stringify({ quoteResponse: quote, userPublicKey: order.userPublicKey, wrapAndUnwrapSol: true, dynamicComputeUnitLimit: true, prioritizationFeeLamports: order.priorityLamports }),
-    signal: AbortSignal.timeout(12_000)
-  });
-  const swap = await swapResponse.json();
+  // Jupiter takes the commission in the swap's OUTPUT token. The fee account is a wrapped-SOL account, so the commission applies to sells (output = SOL);
+  // buys pay none. If Jupiter cannot build the transaction with it, the order goes through without it rather than failing.
+  const feeWanted = order.side === "sell" && config.platformFeeBps > 0 && Boolean(config.platformFeeAccount);
+  let withFee = feeWanted;
+  let quote = await fetchQuote(withFee);
+  let { response: swapResponse, swap } = await buildSwap(quote, withFee);
+  if (withFee && (!swapResponse.ok || !swap?.swapTransaction)) {
+    withFee = false;
+    quote = await fetchQuote(false);
+    ({ response: swapResponse, swap } = await buildSwap(quote, false));
+  }
   if (!swapResponse.ok || !swap?.swapTransaction) throw new LiveTradingError(`Impossible de préparer la transaction${swap?.error ? ` (${String(swap.error).slice(0, 120)})` : ""}.`, 502);
+  const feeLamports = withFee ? Number(quote.platformFee?.amount) : NaN;
+  const platformFee = withFee && Number.isFinite(feeLamports) && feeLamports > 0 ? { bps: config.platformFeeBps, lamports: feeLamports } : null;
 
   const impactPct = Number(quote.priceImpactPct) * 100;
   return {
@@ -84,6 +111,7 @@ export async function prepareSwap(input, { config = liveConfig(), fetchImpl = fe
       routes: (quote.routePlan ?? []).map(step => step?.swapInfo?.label).filter(Boolean),
       priorityLamports: Number(swap.prioritizationFeeLamports ?? order.priorityLamports),
       simulationError: swap.simulationError ? String(swap.simulationError.error ?? swap.simulationError).slice(0, 160) : null,
+      platformFee,
       preparedAt: now
     },
     transaction: swap.swapTransaction,
@@ -130,4 +158,16 @@ export async function getSignatureState(signature, { config = liveConfig(), fetc
   if (!status) return { state: "pending" };
   if (status.err) return { state: "failed", error: JSON.stringify(status.err).slice(0, 160) };
   return { state: status.confirmationStatus === "finalized" ? "finalized" : status.confirmationStatus === "confirmed" ? "confirmed" : "pending" };
+}
+
+/** Checks that the configured fee account exists and is a wrapped-SOL token account. Returns null when fine, otherwise a short reason. */
+export async function checkFeeAccount({ config = liveConfig(), fetchImpl = fetch } = {}) {
+  if (!config.platformFeeAccount) return null;
+  try {
+    const result = await rpc("getAccountInfo", [config.platformFeeAccount, { encoding: "jsonParsed", commitment: "confirmed" }], { config, fetchImpl });
+    const info = result?.value?.data?.parsed?.info;
+    if (!result?.value) return "compte introuvable sur la blockchain";
+    if (info?.mint !== SOL_MINT) return "ce n'est pas un compte de jetons SOL wrappé (wSOL)";
+    return null;
+  } catch { return null; } // RPC hiccup: do not disable the fee because of it
 }

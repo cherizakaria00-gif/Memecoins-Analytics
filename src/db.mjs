@@ -61,6 +61,12 @@ const SCHEMA = `
     decided_at INTEGER,
     decided_by TEXT
   );
+  CREATE TABLE IF NOT EXISTS platform_fees (
+    id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, side TEXT NOT NULL, mint TEXT NOT NULL,
+    bps INTEGER NOT NULL, fee_lamports INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'prepared', signature TEXT UNIQUE,
+    created_at INTEGER NOT NULL, settled_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS fees_status ON platform_fees(status, settled_at);
   CREATE INDEX IF NOT EXISTS crypto_user ON crypto_requests(user_id);
   CREATE INDEX IF NOT EXISTS crypto_status ON crypto_requests(status);
   CREATE TABLE IF NOT EXISTS processed_events (
@@ -106,6 +112,10 @@ export function openStore(file = "data/pulse.db") {
     cryptoPending: db.prepare("SELECT COUNT(*) AS count FROM crypto_requests WHERE status = 'submitted'"),
     cryptoCountSince: db.prepare("SELECT COUNT(*) AS count FROM crypto_requests WHERE user_id = ? AND created_at > ?"),
     cryptoHashUsed: db.prepare("SELECT id FROM crypto_requests WHERE tx_hash = ? AND id != ? AND status IN ('submitted', 'approved') LIMIT 1"),
+    insertFee: db.prepare("INSERT INTO platform_fees (id, user_id, side, mint, bps, fee_lamports, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+    settleFee: db.prepare("UPDATE platform_fees SET status = ?, signature = ?, settled_at = ? WHERE id = ? AND user_id = ? AND status = 'prepared'"),
+    feeTotals: db.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(fee_lamports), 0) AS lamports FROM platform_fees WHERE status = 'confirmed' AND settled_at >= ?"),
+    recentFees: db.prepare("SELECT platform_fees.*, users.email FROM platform_fees JOIN users ON users.id = platform_fees.user_id WHERE status = 'confirmed' ORDER BY settled_at DESC LIMIT ?"),
     upsertState: db.prepare("INSERT INTO user_state (user_id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at"),
     insertEvent: db.prepare("INSERT OR IGNORE INTO processed_events (id, processed_at) VALUES (?, ?)"),
     insertPayment: db.prepare("INSERT OR IGNORE INTO payments (id, customer_id, amount_cents, currency, paid_at) VALUES (?, ?, ?, ?, ?)"),
@@ -143,6 +153,11 @@ export function openStore(file = "data/pulse.db") {
     pendingCryptoCount: () => statements.cryptoPending.get().count,
     cryptoRequestsSince: (userId, since) => statements.cryptoCountSince.get(userId, since).count,
     cryptoHashInUse: (txHash, exceptId) => Boolean(statements.cryptoHashUsed.get(txHash, exceptId)),
+    recordPreparedFee: ({ id, userId, side, mint, bps, feeLamports, now }) => statements.insertFee.run(id, userId, side, mint, bps, Math.max(0, Math.round(feeLamports)), now),
+    /** Marks a prepared fee as confirmed or failed once, for the user who prepared it. */
+    settleFee: ({ id, userId, status, signature = null, now }) => statements.settleFee.run(status, signature, now, id, userId).changes > 0,
+    feeTotals: (since = 0) => ({ ...statements.feeTotals.get(since) }),
+    recentFees: (limit = 30) => statements.recentFees.all(limit),
     state: userId => statements.state.get(userId) ?? null,
     saveState: (userId, data, now) => { statements.upsertState.run(userId, data, now); },
     /** True the first time an event id is seen, false for replays. */

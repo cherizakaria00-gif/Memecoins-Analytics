@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,7 @@ import { createAuth } from "./auth.mjs";
 import { createBilling } from "./billing.mjs";
 import { createCryptoPayments, paymentAddresses } from "./crypto-payments.mjs";
 import { createSaas, readBody } from "./saas-routes.mjs";
-import { LiveTradingError, getPortfolio, getSignatureState, liveConfig, prepareSwap } from "./live-trading.mjs";
+import { LiveTradingError, checkFeeAccount, getPortfolio, getSignatureState, liveConfig, prepareSwap } from "./live-trading.mjs";
 import { getCompetitionStandings, getCompetitions, getPnlLeaderboard, isValidPeriod, isValidSlug } from "./standings-client.mjs";
 
 try { process.loadEnvFile(new URL("../.env", import.meta.url)); } catch { /* no .env file, rely on the process environment */ }
@@ -26,6 +27,16 @@ const PORT = Number(process.env.PORT ?? 4173);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const APP_URL = (process.env.APP_URL ?? `http://${HOST}:${PORT}`).replace(/\/+$/, "");
 const store = openStore(process.env.DATABASE_FILE ?? fileURLToPath(new URL("../data/pulse.db", import.meta.url)));
+const liveTradingConfig = liveConfig();
+let feeProblem = null;
+if (liveTradingConfig.platformFeeAccount) {
+  checkFeeAccount({ config: liveTradingConfig }).then(problem => {
+    if (!problem) return;
+    feeProblem = problem;
+    liveTradingConfig.platformFeeBps = 0;
+    console.warn(`PLATFORM_FEE_ACCOUNT invalide (${problem}) : commission désactivée.`);
+  });
+}
 let solUsdCache = { value: 0, at: 0 };
 async function getSolUsd() {
   if (solUsdCache.value && Date.now() - solUsdCache.at < 60_000) return solUsdCache.value;
@@ -38,7 +49,7 @@ async function getSolUsd() {
   return price;
 }
 const saas = createSaas({
-  store, crypto: createCryptoPayments({ store, addresses: paymentAddresses(), getSolUsd }), send: sendJson, secureCookies: APP_URL.startsWith("https://"),
+  store, platformFee: { get bps() { return liveTradingConfig.platformFeeBps; }, get account() { return liveTradingConfig.platformFeeAccount; }, get problem() { return feeProblem; }, getSolUsd }, crypto: createCryptoPayments({ store, addresses: paymentAddresses(), getSolUsd }), send: sendJson, secureCookies: APP_URL.startsWith("https://"),
   auth: createAuth({ store }),
   billing: createBilling({
     store, appUrl: APP_URL, secretKey: process.env.STRIPE_SECRET_KEY, webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
@@ -47,7 +58,6 @@ const saas = createSaas({
   })
 });
 const liveRequests2 = new Map();
-const liveTradingConfig = liveConfig();
 const clientOf = request => (request.user ? `u:${request.user.id}` : request.socket.remoteAddress ?? "unknown");
 const STATIC_ROOT = resolve(fileURLToPath(new URL("../dist", import.meta.url)));
 const MIME_TYPES = new Map([
@@ -139,7 +149,7 @@ const server = createServer(async (request, response) => {
       if (isRateLimited(liveRequests2, clientOf(request), 120)) { sendJson(response, 429, { error: "Trop de requêtes." }); return; }
       try {
         if (url.pathname === "/api/live/config" && request.method === "GET") {
-          sendJson(response, 200, { enabled: liveTradingConfig.enabled, maxOrderSol: liveTradingConfig.maxOrderSol });
+          sendJson(response, 200, { enabled: liveTradingConfig.enabled, maxOrderSol: liveTradingConfig.maxOrderSol, platformFeeBps: liveTradingConfig.platformFeeBps });
           return;
         }
         if (url.pathname === "/api/live/portfolio" && request.method === "GET") {
@@ -147,14 +157,26 @@ const server = createServer(async (request, response) => {
           return;
         }
         if (url.pathname === "/api/live/status" && request.method === "GET") {
-          sendJson(response, 200, await getSignatureState(url.searchParams.get("signature") ?? "", { config: liveTradingConfig }));
+          const signature = url.searchParams.get("signature") ?? "";
+          const result = await getSignatureState(signature, { config: liveTradingConfig });
+          const feeId = url.searchParams.get("order") ?? "";
+          if (/^[\w-]{8,64}$/.test(feeId) && result.state !== "pending") {
+            store.settleFee({ id: feeId, userId: request.user.id, status: result.state === "failed" ? "failed" : "confirmed", signature, now: Date.now() });
+          }
+          sendJson(response, 200, result);
           return;
         }
         if (url.pathname === "/api/live/prepare" && request.method === "POST") {
           let body;
           try { body = JSON.parse(await readBody(request, 20_000)); } catch { throw new LiveTradingError("Requête invalide."); }
           console.log(`Live order prepared: ${body?.side} ${String(body?.mint).slice(0, 6)}… by ${request.user.id.slice(0, 8)}`);
-          sendJson(response, 200, await prepareSwap(body, { config: liveTradingConfig }));
+          const prepared = await prepareSwap(body, { config: liveTradingConfig });
+          if (prepared.summary.platformFee) {
+            const orderId = randomUUID();
+            store.recordPreparedFee({ id: orderId, userId: request.user.id, side: prepared.summary.side, mint: prepared.summary.mint, bps: prepared.summary.platformFee.bps, feeLamports: prepared.summary.platformFee.lamports, now: Date.now() });
+            prepared.summary.orderId = orderId;
+          }
+          sendJson(response, 200, prepared);
           return;
         }
         sendJson(response, 404, { error: "Introuvable." });

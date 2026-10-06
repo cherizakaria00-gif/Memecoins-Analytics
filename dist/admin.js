@@ -9,7 +9,7 @@ const dateTime = ms => (ms ? new Date(ms).toLocaleString(locale, { day: "2-digit
 const short = address => `${address.slice(0, 4)}…${address.slice(-4)}`;
 
 const PLAN_LABEL = { active: ["Actif", "ok"], trialing: ["Essai", "ok"], past_due: ["Retard de paiement", "warn"], canceled: ["Annulé", "bad"], incomplete: ["Incomplet", "warn"], none: ["Aucun plan", "neutral"], comped: ["Offert", "blue"] };
-const state = { crypto: [], data: null, filter: "all", query: "", timer: null };
+const state = { fees: null, crypto: [], data: null, filter: "all", query: "", timer: null };
 
 const FILTERS = {
   all: () => true,
@@ -117,8 +117,36 @@ async function decide(button) {
   await Promise.all([loadCrypto(), loadAdmin()]);
 }
 
+const solText = value => `${value.toLocaleString(locale, { maximumFractionDigits: 4 })} SOL`;
+
+function renderFees() {
+  const fees = state.data?.fees;
+  if (!fees) return;
+  const pill = $("#fees-status");
+  pill.textContent = fees.configured ? `${(fees.bps / 100).toLocaleString(locale)} % actif` : "Désactivé";
+  pill.className = `plan-pill ${fees.configured ? "ok" : "warn"}`;
+  if (fees.problem) { pill.textContent = "Compte invalide"; pill.className = "plan-pill bad"; }
+  $("#fees-help").textContent = fees.problem ? `PLATFORM_FEE_ACCOUNT est invalide (${fees.problem}) : la commission est désactivée tant que tu ne le corriges pas dans le fichier .env.` : fees.configured
+    ? `Commission prélevée sur chaque swap LIVE confirmé et versée directement sur ton compte de frais (${short(fees.account)}). Les montants ne comptent que les ordres confirmés sur la blockchain.`
+    : "Aucune commission n'est prélevée : ajoute PLATFORM_FEE_ACCOUNT (compte SOL wrappé qui reçoit les frais) dans le fichier .env, puis relance le serveur.";
+  const usd = sol => (fees.solUsd > 0 ? ` ≈ ${money(Math.round(sol * fees.solUsd * 100), 2)}` : "");
+  const cards = [
+    ["Frais encaissés (total)", solText(fees.totalSol), `${fees.totalCount} swap${fees.totalCount > 1 ? "s" : ""}${usd(fees.totalSol)}`, "positive"],
+    ["Frais ce mois", solText(fees.monthSol), `${fees.monthCount} swap${fees.monthCount > 1 ? "s" : ""}${usd(fees.monthSol)}`, ""]
+  ];
+  $("#fees-kpis").innerHTML = cards.map(([label, value, sub, tone]) => `<article class="kpi"><span>${label}</span><strong class="${tone}">${esc(value)}</strong><small>${esc(sub)}</small></article>`).join("");
+  $("#fees-empty").hidden = fees.recent.length > 0;
+  $("#fees-body").innerHTML = fees.recent.map(fee => `<tr>
+    <td><strong class="cell-main">${esc(fee.email)}</strong></td>
+    <td>${fee.side === "buy" ? "Achat" : "Vente"}<small class="since-note">${esc(short(fee.mint))}</small></td>
+    <td>${esc(solText(fee.sol))}<small class="since-note">${esc(usd(fee.sol).replace(/^ ≈ /, "≈ "))}</small></td>
+    <td>${fee.signature ? `<a class="wallet-link" href="https://solscan.io/tx/${esc(fee.signature)}" target="_blank" rel="noopener noreferrer">${esc(fee.signature.slice(0, 8))}…</a>` : "—"}</td>
+    <td>${esc(dateTime(fee.at))}</td></tr>`).join("");
+}
+
 function render() {
   renderKpis(state.data.totals);
+  renderFees();
   renderRows();
   $("#admin-status").textContent = `mis à jour ${new Date(state.data.generatedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
 }

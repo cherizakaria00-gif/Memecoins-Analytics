@@ -350,6 +350,15 @@ async function boot() {
   try { config = await api("/api/config"); } catch { /* shown without trial info */ }
   if (config?.plan?.trialDays > 0) $("#gate-trial").textContent = `${config.plan.trialDays} jours d'essai gratuit.`;
   $("#paywall-dev").hidden = !config?.devBilling;
+  if (config?.liveFeeBps > 0) {
+    const percent = String(config.liveFeeBps / 100).replace(".", ",");
+    for (const id of ["#live-fee-note", "#legal-fee"]) {
+      const node = $(id);
+      if (!node) continue;
+      node.hidden = false;
+      if (config.liveFeeBps !== 50) for (const text of node.matches("p") ? [node] : node.querySelectorAll("p")) text.textContent = text.textContent.replaceAll("0,5", percent);
+    }
+  }
   crypto.methods = config?.cryptoMethods ?? [];
   renderCryptoPick();
 

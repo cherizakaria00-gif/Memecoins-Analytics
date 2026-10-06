@@ -35,7 +35,7 @@ export function isSameOrigin(request) {
  * Accounts, subscription and state-sync routes plus the paywall for the rest of the API.
  * `send(response, status, payload, headers)` is the server's JSON responder.
  */
-export function createSaas({ auth, billing, store, crypto = null, send, secureCookies = false, now = () => Date.now() }) {
+export function createSaas({ auth, billing, store, crypto = null, platformFee = { bps: 0, account: null, getSolUsd: async () => 0 }, send, secureCookies = false, now = () => Date.now() }) {
   const loginByIp = createLimiter({ limit: 30, windowMs: 15 * 60_000 });
   const loginByAccount = createLimiter({ limit: 8, windowMs: 15 * 60_000 });
   const signupByIp = createLimiter({ limit: 10, windowMs: 3_600_000 });
@@ -44,6 +44,21 @@ export function createSaas({ auth, billing, store, crypto = null, send, secureCo
   const isAdmin = user => Boolean(user && billing.adminEmails.includes(user.email));
   const me = user => ({ user: publicUser(user), access: { ...billing.access(user), admin: isAdmin(user), ...(isAdmin(user) ? { pendingCrypto: store.pendingCryptoCount() } : {}) } });
   const cryptoLimiter = createLimiter({ limit: 40, windowMs: 3_600_000 });
+
+  /** Commission collected on LIVE swaps (confirmed orders only), in SOL with a dollar estimate at the current SOL price. */
+  async function feeSummary() {
+    const startOfMonth = new Date(now()); startOfMonth.setDate(1); startOfMonth.setHours(0, 0, 0, 0);
+    const all = store.feeTotals(0);
+    const month = store.feeTotals(startOfMonth.getTime());
+    let solUsd = 0;
+    try { solUsd = await platformFee.getSolUsd(); } catch { /* the SOL amounts are still shown */ }
+    const sol = lamports => lamports / 1e9;
+    return {
+      bps: platformFee.bps, configured: platformFee.bps > 0, account: platformFee.account, problem: platformFee.problem ?? null,
+      solUsd, totalSol: sol(all.lamports), totalCount: all.count, monthSol: sol(month.lamports), monthCount: month.count,
+      recent: store.recentFees(20).map(fee => ({ id: fee.id, email: fee.email, side: fee.side, mint: fee.mint, sol: sol(fee.fee_lamports), signature: fee.signature, at: fee.settled_at }))
+    };
+  }
 
   function fail(response, error) {
     const status = error instanceof AuthError || error.status ? error.status : 500;
@@ -76,7 +91,7 @@ export function createSaas({ auth, billing, store, crypto = null, send, secureCo
 
       try {
         if (pathname === "/api/config" && method === "GET") {
-          send(response, 200, { plan: { ...PLAN, trialDays: billing.trialDays ?? 0 }, plans: PLANS, billingConfigured: billing.configured, devBilling: billing.devMode, cryptoMethods: crypto?.methods() ?? [] });
+          send(response, 200, { plan: { ...PLAN, trialDays: billing.trialDays ?? 0 }, plans: PLANS, billingConfigured: billing.configured, devBilling: billing.devMode, liveFeeBps: platformFee.bps, cryptoMethods: crypto?.methods() ?? [] });
           return true;
         }
         if (pathname === "/api/me" && method === "GET") {
@@ -152,7 +167,7 @@ export function createSaas({ auth, billing, store, crypto = null, send, secureCo
         if (pathname.startsWith("/api/admin/")) {
           if (!isAdmin(request.user)) { send(response, request.user ? 403 : 401, { error: request.user ? "Réservé à l'administrateur." : "Connexion requise." }); return true; }
           if (pathname === "/api/admin/overview" && method === "GET") {
-            send(response, 200, buildAdminOverview({ rows: store.adminUsers(), payments: store.payments(), adminEmails: billing.adminEmails, now: now() }));
+            send(response, 200, { ...buildAdminOverview({ rows: store.adminUsers(), payments: store.payments(), adminEmails: billing.adminEmails, now: now() }), fees: await feeSummary() });
             return true;
           }
           if (crypto && pathname === "/api/admin/crypto" && method === "GET") { send(response, 200, { requests: crypto.adminList(), pending: store.pendingCryptoCount() }); return true; }

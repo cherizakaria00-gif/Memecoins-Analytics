@@ -122,6 +122,7 @@
               <div class="price"><strong data-price>20 $</strong><span data-price-unit>/ mois</span></div>
               <p class="plan-sub"><span data-price-note>Sans engagement.</span> <span id="gate-trial"></span></p>
               <ul><li>Scanner, signaux et plan de trade</li><li>Paper trading et tableau de bord</li><li>Mode LIVE avec ton wallet</li><li>Alertes et synchronisation du compte</li></ul>
+              <p class="plan-fee" id="live-fee-note" hidden>Mode LIVE : commission Pulse de 0,5 % sur les ventes, affichée avant ta signature. Aucun frais Pulse en mode TEST.</p>
               <button class="land-start big" type="button" data-open-auth="signup">Commencer</button>
             </div>
             <div class="pay-methods">
@@ -232,6 +233,8 @@
           <p>Pulse fournit des données de marché, des analyses et un simulateur de trading. Ce n'est <strong>ni un conseil en investissement, ni une recommandation d'achat ou de vente</strong>. Les crypto-monnaies, et en particulier les memecoins, sont très volatiles et peuvent perdre toute leur valeur. Les signaux, scores et plans de trade sont des heuristiques : ils ne garantissent aucun gain. Les performances simulées ne préjugent pas des résultats réels.</p>
           <h3>Abonnement</h3>
           <p>L'abonnement coûte 20 $ par mois, renouvelé automatiquement via Stripe. Tu peux le résilier à tout moment depuis « Gérer l'abonnement » ; l'accès reste actif jusqu'à la fin de la période déjà payée.</p>
+          <div id="legal-fee" hidden><h3>Frais du mode LIVE</h3>
+          <p>En mode LIVE, Pulse prélève une commission de 0,5 % sur chaque vente, en SOL, incluse dans la transaction que tu signes. Elle est affichée dans le récapitulatif avant ta signature, en plus des frais réseau, de priorité et de la plateforme de swap. Aucune commission n'est prélevée à l'achat ni en mode TEST.</p></div>
           <h3>Données</h3>
           <p>Nous stockons ton email, un mot de passe chiffré (haché), l'état de ton abonnement et tes réglages (portefeuille de simulation, favoris, alertes). L'administrateur du service peut voir ton email, ton plan, tes paiements, l'adresse <strong>publique</strong> du dernier wallet que tu as connecté et les résultats de ton portefeuille de simulation. Pulse ne demande jamais ta seed phrase et ne détient jamais tes fonds. En mode TEST les wallets sont en lecture seule ; en mode LIVE, chaque transaction est préparée par Pulse puis signée par toi dans ton wallet.</p>
           <h3>Sources de données</h3>
@@ -337,6 +340,12 @@
             <p class="signals-help">Vue réservée à l'administrateur : inscriptions, plans, revenus encaissés (Stripe et crypto), dernier wallet connecté et résultats de la simulation de chaque abonné.</p>
           </div>
           <div class="kpi-grid" id="admin-kpis"></div>
+          <section class="crypto-admin fees-admin" aria-labelledby="fees-admin-title">
+            <div class="crypto-admin-head"><h2 id="fees-admin-title">Frais Pulse (mode LIVE) <span class="plan-pill" id="fees-status"></span></h2><p class="signals-help" id="fees-help"></p></div>
+            <div class="kpi-grid" id="fees-kpis"></div>
+            <div class="table-wrap"><table><thead><tr><th>Abonné</th><th>Ordre</th><th>Frais</th><th>Transaction</th><th>Date</th></tr></thead><tbody id="fees-body"></tbody></table></div>
+            <div class="empty-state" id="fees-empty" hidden>Aucun frais encaissé pour l'instant.</div>
+          </section>
           <section class="crypto-admin" aria-labelledby="crypto-admin-title">
             <div class="crypto-admin-head"><h2 id="crypto-admin-title">Paiements crypto <span class="plan-pill warn" id="crypto-pending-pill" hidden></span></h2><p class="signals-help">Vérifie la transaction sur l'explorateur, puis valide : l'abonné reçoit 30 jours d'accès (ou la durée que tu choisis).</p></div>
             <div class="table-wrap"><table><thead><tr><th>Abonné</th><th>Méthode</th><th>Montant</th><th>Transaction</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead><tbody id="crypto-admin-body"></tbody></table></div>
