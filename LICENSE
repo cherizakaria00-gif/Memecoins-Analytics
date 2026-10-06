@@ -1,0 +1,23 @@
+Memecoins Analytics — Proprietary Commercial License
+Copyright (c) 2026 cherizakaria00-gif. All rights reserved.
+
+This source code is published for viewing and evaluation only. It is NOT open source.
+
+1. Permitted without a license: reading the code, and running it locally for personal
+   evaluation for up to 14 days.
+
+2. Not permitted without a paid commercial license from the copyright holder: using this
+   software or any part of it in production or for any commercial purpose, hosting it as a
+   service, copying, modifying, sublicensing, redistributing, reselling, or building
+   derivative works or competing products from it.
+
+3. Commercial licenses are sold by the copyright holder. To buy one, contact the holder
+   through the GitHub profile https://github.com/cherizakaria00-gif.
+
+4. Any permitted copy must keep this notice and the copyright signature intact.
+
+5. Third-party components remain under their own licenses (see package.json and node_modules).
+
+6. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. IT IS AN ANALYSIS AND
+   SIMULATION TOOL, NOT FINANCIAL ADVICE. MEMECOINS ARE EXTREMELY RISKY AND YOU CAN LOSE
+   EVERYTHING YOU INVEST. THE AUTHOR IS NOT LIABLE FOR ANY LOSS OR DAMAGE ARISING FROM ITS USE.

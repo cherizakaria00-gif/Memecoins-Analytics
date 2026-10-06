@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Terminal de détection et de paper trading pour memecoins Solana." />
+    <title>Pulse — Memecoin Scanner</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0d0f'/%3E%3Cpath d='M5 18h5l3-9 5 15 3-9h6' fill='none' stroke='%23b8f55d' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body data-access="pending">
+    <div class="gate" id="gate" role="dialog" aria-modal="true" aria-label="Pulse">
+      <div class="gate-loading" id="gate-loading"><span class="spinner" aria-hidden="true"></span> Chargement…</div>
+      <div class="gate-page" id="gate-page" hidden>
+      <div class="landing" id="gate-landing">
+        <header class="land-nav">
+          <a class="gate-brand" href="/" aria-label="Pulse"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong>PULSE</strong></a>
+          <nav class="land-links" aria-label="Sections"><a href="#fonctions">Fonctions</a><a href="#methode">Comment ça marche</a><a href="#tarif">Tarif</a><a href="#faq">FAQ</a></nav>
+          <div class="land-cta"><button class="land-login" type="button" data-open-auth="login">Connexion</button><button class="land-start" type="button" data-open-auth="signup">Commencer</button></div>
+        </header>
+
+        <section class="land-hero">
+          <div class="land-hero-copy">
+            <p class="land-badge"><i></i> Radar de memecoins Solana · en direct</p>
+            <h1>Repère les bons coins <strong>avant la foule.</strong></h1>
+            <p class="land-lead">Scanner temps réel, filtre qualité, signaux notés avec points d'entrée et de sortie, simulation réaliste et trading réel avec ton propre wallet. Tout au même endroit.</p>
+            <div class="land-actions"><button class="land-start big" type="button" data-open-auth="signup">Créer mon compte</button><a class="land-ghost" href="#tarif">Voir le tarif · 20 $/mois</a></div>
+            <ul class="land-proof"><li>pump.fun + DexScreener</li><li>Sans seed phrase</li><li>Paiement carte ou crypto</li></ul>
+          </div>
+          <div class="land-preview" aria-hidden="true">
+            <div class="preview-bar"><span></span><span></span><span></span><em>Aperçu illustratif</em></div>
+            <div class="preview-kpis"><div><small>Valeur simulée</small><b>1 248 $</b></div><div><small>Gagné</small><b class="up">+248 $</b></div><div><small>Signaux</small><b>7</b></div></div>
+            <div class="preview-rows">
+              <div class="pr qualified"><i class="pr-dot">A</i><b>$EXAMPLE</b><span>MC 84K</span><span>Liq 21K</span><em class="up">+38 %</em></div>
+              <div class="pr"><i class="pr-dot">B</i><b>$DEMO</b><span>MC 52K</span><span>Liq 14K</span><em class="up">+12 %</em></div>
+              <div class="pr"><i class="pr-dot">C</i><b>$SAMPLE</b><span>MC 31K</span><span>Liq 11K</span><em class="down">−6 %</em></div>
+              <div class="pr qualified"><i class="pr-dot">A</i><b>$TICKER</b><span>MC 126K</span><span>Liq 33K</span><em class="up">+21 %</em></div>
+            </div>
+            <div class="preview-plan"><span>Entrée <b>0,0000412</b></span><span>Stop <b class="down">−25 %</b></span><span>Cibles <b class="up">+50 % · +100 %</b></span></div>
+          </div>
+        </section>
+
+        <section class="land-section" id="fonctions">
+          <p class="eyebrow">FONCTIONS</p><h2>Tout ce qu'il faut pour trier le bruit</h2>
+          <div class="land-grid">
+            <article><span>📡</span><h3>Scanner en direct</h3><p>Cours, volume et ATH rafraîchis chaque seconde. Nouveaux coins, Final Stretch et Migrés comme sur pump.fun.</p></article>
+            <article><span>🛡️</span><h3>Filtre qualité</h3><p>Market cap, liquidité, volume, frais, âge, snipers, bundlers et top 10 des détenteurs. Les coins qualifiés passent au vert.</p></article>
+            <article><span>🎯</span><h3>Signaux et plan de trade</h3><p>Notes A/B/C, détection des démarrages précoces, entrée, stop-loss et cibles calculés pour chaque coin.</p></article>
+            <article><span>🧪</span><h3>Paper trading réaliste</h3><p>Frais, slippage et presets. Stop-loss et take-profit automatiques, historique et tableau de bord complets.</p></article>
+            <article><span>🔔</span><h3>Alertes</h3><p>Nouveaux signaux, traders suivis, stop-loss et take-profit, dans le navigateur et sur ton téléphone.</p></article>
+            <article><span>👛</span><h3>Mode LIVE non-custodial</h3><p>Connecte Phantom, Solflare ou WalletConnect : tu signes chaque swap toi-même. Pulse ne détient jamais tes fonds.</p></article>
+          </div>
+        </section>
+
+        <section class="land-section" id="methode">
+          <p class="eyebrow">COMMENT ÇA MARCHE</p><h2>De l'inscription au premier signal en 3 minutes</h2>
+          <ol class="land-steps">
+            <li><b>1</b><h3>Crée ton compte</h3><p>Email et mot de passe. Tes réglages te suivent sur tous tes appareils.</p></li>
+            <li><b>2</b><h3>Active l'abonnement</h3><p>Par carte (Stripe) ou en crypto : scanne le QR code, envoie le paiement, l'accès est activé après validation.</p></li>
+            <li><b>3</b><h3>Trade en test ou en live</h3><p>Commence en simulation, puis passe en mode LIVE avec ton propre wallet quand tu es prêt.</p></li>
+          </ol>
+        </section>
+
+        <section class="land-section" id="tarif">
+          <p class="eyebrow">TARIF</p><h2>Un seul plan, tout inclus</h2>
+          <div class="land-pricing">
+            <div class="plan-card">
+              <p class="plan-name">Pulse Pro</p>
+              <div class="price"><strong>20 $</strong><span>/ mois</span></div>
+              <p class="plan-sub">Sans engagement. <span id="gate-trial"></span></p>
+              <ul><li>Scanner, signaux et plan de trade</li><li>Paper trading et tableau de bord</li><li>Mode LIVE avec ton wallet</li><li>Alertes et synchronisation du compte</li></ul>
+              <button class="land-start big" type="button" data-open-auth="signup">Commencer</button>
+            </div>
+            <div class="pay-methods">
+              <h3>Moyens de paiement</h3>
+              <div class="method-card"><b>💳 Carte bancaire</b><p>Paiement sécurisé par Stripe, renouvellement automatique, annulable à tout moment.</p></div>
+              <div class="method-card"><b>🪙 Crypto</b><p>Scanne le QR code et paie en <b>SOL</b>, <b>USDT</b> ou <b>USDC</b>.</p><div class="chips"><span>Solana</span><span>Ethereum (ERC-20)</span><span>Polygon</span><span>BNB Chain</span></div><p class="method-note">Paiement crypto valable 30 jours, validé manuellement par l'administrateur.</p></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="land-section narrow" id="faq">
+          <p class="eyebrow">FAQ</p><h2>Questions fréquentes</h2>
+          <details><summary>Pulse détient-il mes fonds ?</summary><p>Non. En mode LIVE chaque transaction est préparée par Pulse puis signée par toi dans ton wallet. Pulse ne demande jamais ta seed phrase.</p></details>
+          <details><summary>Comment fonctionne le paiement en crypto ?</summary><p>Choisis l'actif (SOL, USDT ou USDC) et le réseau (Solana, Ethereum, Polygon ou BNB Chain), scanne le QR code et envoie le montant exact. Colle ensuite le hash de la transaction : l'administrateur la vérifie et active ton accès pour 30 jours, en général sous quelques heures.</p></details>
+          <details><summary>Puis-je annuler ?</summary><p>Oui, à tout moment. Par carte depuis ton compte ; en crypto, il suffit de ne pas renouveler.</p></details>
+          <details><summary>Pulse donne-t-il des conseils financiers ?</summary><p>Non. Pulse est un outil d'analyse et de simulation. Les memecoins sont extrêmement risqués : tu peux perdre la totalité de ce que tu investis.</p></details>
+        </section>
+
+        <footer class="land-footer">
+          <div class="gate-brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong>PULSE</strong></div>
+          <p class="gate-risk">Pulse est un outil d'analyse et de simulation, pas un conseil financier. Les memecoins sont extrêmement risqués : tu peux perdre la totalité de ce que tu investis.</p>
+          <button type="button" class="link-button" data-open-legal>Conditions d'utilisation et risques</button>
+        </footer>
+      </div>
+
+      <div class="auth-modal" id="gate-auth" hidden>
+        <button class="auth-backdrop" type="button" data-close-auth aria-label="Fermer"></button>
+        <section class="gate-panel auth-dialog" role="dialog" aria-modal="true" aria-label="Connexion">
+          <button class="modal-close" type="button" data-close-auth aria-label="Fermer">×</button>
+          <div class="auth-tabs" role="tablist"><button type="button" class="active" data-auth-tab="login">Connexion</button><button type="button" data-auth-tab="signup">Créer un compte</button></div>
+          <form id="auth-form" novalidate>
+            <label>Email<input id="auth-email" type="email" autocomplete="email" required /></label>
+            <label>Mot de passe<input id="auth-password" type="password" autocomplete="current-password" minlength="10" required /></label>
+            <small class="auth-hint" id="auth-hint" hidden>10 caractères minimum, avec au moins une lettre et un chiffre.</small>
+            <label class="terms" id="auth-terms" hidden><input id="auth-accept" type="checkbox" /> <span>J'ai lu et j'accepte les <button type="button" class="link-button" data-open-legal>conditions d'utilisation et l'avertissement sur les risques</button>.</span></label>
+            <p class="auth-error" id="auth-error" role="alert" hidden></p>
+            <button class="gate-submit" id="auth-submit" type="submit">Se connecter</button>
+          </form>
+        </section>
+      </div>
+
+      <div class="gate-view paywall-page" id="gate-paywall" hidden>
+        <header class="gate-brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong>PULSE</strong></header>
+        <section class="gate-panel paywall-panel">
+          <h2>Active ton abonnement</h2>
+          <p class="paywall-user">Connecté en tant que <strong id="paywall-email">—</strong></p>
+          <div class="price-card compact"><div class="price"><strong>20 $</strong><span>/ mois</span></div><p>Accès complet à toute la plateforme.</p></div>
+          <div class="auth-tabs" role="tablist"><button type="button" class="active" data-pay-tab="card">💳 Carte</button><button type="button" data-pay-tab="crypto">🪙 Crypto</button></div>
+          <p class="auth-error" id="paywall-error" role="alert" hidden></p>
+          <div id="pay-card">
+            <button class="gate-submit" id="paywall-subscribe" type="button">S'abonner · 20 $ / mois</button>
+            <button class="gate-secondary" id="paywall-dev" type="button" hidden>Activer sans paiement (mode test local)</button>
+            <p class="paywall-small">Paiement sécurisé par Stripe. Annulable à tout moment depuis ton compte.</p>
+          </div>
+          <div id="pay-crypto" hidden>
+            <div id="crypto-pick">
+              <p class="pay-label">1 · Choisis l'actif</p><div class="pay-options" id="crypto-assets"></div>
+              <p class="pay-label">2 · Choisis le réseau</p><div class="pay-options" id="crypto-networks"></div>
+              <button class="gate-submit" id="crypto-start" type="button" disabled>Afficher le QR code</button>
+              <p class="paywall-small" id="crypto-unavailable" hidden>Le paiement crypto n'est pas encore activé sur ce serveur.</p>
+            </div>
+            <div id="crypto-invoice" hidden>
+              <div class="invoice-top"><img id="crypto-qr" alt="QR code de paiement" width="200" height="200" /><div class="invoice-facts">
+                <small>Montant exact</small><div class="copy-row"><strong id="crypto-amount"></strong><button type="button" class="copy-btn" data-copy="crypto-amount">Copier</button></div>
+                <small>Réseau</small><b id="crypto-network"></b>
+                <small>Expire dans</small><b id="crypto-expiry">—</b></div></div>
+              <small>Adresse de réception</small><div class="copy-row address"><code id="crypto-address"></code><button type="button" class="copy-btn" data-copy="crypto-address">Copier</button></div>
+              <small>Référence (mémo)</small><div class="copy-row"><code id="crypto-reference"></code><button type="button" class="copy-btn" data-copy="crypto-reference">Copier</button></div>
+              <p class="invoice-warning" id="crypto-warning"></p>
+              <div id="crypto-submit-box"><label>Hash de la transaction<input id="crypto-hash" type="text" autocomplete="off" spellcheck="false" placeholder="Colle ici l'identifiant de ta transaction" /></label>
+                <button class="gate-submit" id="crypto-submit" type="button">J'ai payé</button></div>
+              <div class="invoice-status" id="crypto-status" hidden></div>
+              <button class="link-button" id="crypto-back" type="button">← Changer de méthode</button>
+            </div>
+          </div>
+          <button class="link-button" id="paywall-logout" type="button">Se déconnecter</button>
+        </section>
+      </div>
+    </div>
+  </div>
+    <div class="legal-modal" id="live-risk-modal" hidden>
+      <button class="wallet-modal-backdrop" type="button" data-close-live-risk aria-label="Fermer"></button>
+      <section class="wallet-dialog legal-dialog" role="dialog" aria-modal="true" aria-labelledby="live-risk-title">
+        <div class="wallet-dialog-head"><div><p class="eyebrow">TRADING RÉEL</p><h2 id="live-risk-title">Passer en mode LIVE</h2></div><button class="modal-close" type="button" data-close-live-risk aria-label="Fermer">×</button></div>
+        <div class="legal-body">
+          <p>En mode LIVE, tu achètes et vends avec le <strong>solde réel de ton wallet</strong>. Chaque ordre est une transaction Solana que <strong>tu signes toi-même</strong> dans ton wallet : Pulse ne détient jamais tes clés ni tes fonds et n'envoie rien sans ta signature.</p>
+          <h3>À savoir avant de commencer</h3>
+          <p>• Les memecoins sont extrêmement volatils : tu peux perdre la totalité de ce que tu investis, y compris à cause d'arnaques (rug pull), de faible liquidité ou d'un slippage élevé.<br />• Les transactions sont irréversibles. Les frais de réseau, de priorité et des plateformes de swap sont à ta charge et non remboursables, même si l'ordre échoue.<br />• Les signaux, scores et plans de trade de Pulse sont des aides à la décision, pas des conseils en investissement.<br />• Les stop-loss et take-profit du mode LIVE sont de simples alertes : ils n'exécutent aucun ordre automatiquement.<br />• Commence avec de petits montants. Une limite par ordre est réglable dans le panneau de trade.</p>
+          <label class="terms live-ack"><input id="live-ack" type="checkbox" /> <span>J'ai compris que je trade avec de l'argent réel, que je peux tout perdre et que je suis seul responsable de mes décisions.</span></label>
+          <button class="gate-submit" id="live-risk-accept" type="button" disabled>Activer le mode LIVE</button>
+        </div>
+      </section>
+    </div>
+    <div class="legal-modal" id="live-confirm-modal" hidden>
+      <button class="wallet-modal-backdrop" type="button" data-close-live-confirm aria-label="Fermer"></button>
+      <section class="wallet-dialog legal-dialog" role="dialog" aria-modal="true" aria-labelledby="live-confirm-title">
+        <div class="wallet-dialog-head"><div><p class="eyebrow">ORDRE RÉEL · À CONFIRMER</p><h2 id="live-confirm-title">Confirmer l'ordre</h2></div><button class="modal-close" type="button" data-close-live-confirm aria-label="Fermer">×</button></div>
+        <div class="legal-body" id="live-confirm-body"></div>
+      </section>
+    </div>
+    <div class="legal-modal" id="legal-modal" hidden>
+      <button class="wallet-modal-backdrop" type="button" data-close-legal aria-label="Fermer"></button>
+      <section class="wallet-dialog legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title">
+        <div class="wallet-dialog-head"><div><p class="eyebrow">À LIRE</p><h2 id="legal-title">Conditions et avertissement</h2></div><button class="modal-close" type="button" data-close-legal aria-label="Fermer">×</button></div>
+        <div class="legal-body">
+          <h3>Avertissement sur les risques</h3>
+          <p>Pulse fournit des données de marché, des analyses et un simulateur de trading. Ce n'est <strong>ni un conseil en investissement, ni une recommandation d'achat ou de vente</strong>. Les crypto-monnaies, et en particulier les memecoins, sont très volatiles et peuvent perdre toute leur valeur. Les signaux, scores et plans de trade sont des heuristiques : ils ne garantissent aucun gain. Les performances simulées ne préjugent pas des résultats réels.</p>
+          <h3>Abonnement</h3>
+          <p>L'abonnement coûte 20 $ par mois, renouvelé automatiquement via Stripe. Tu peux le résilier à tout moment depuis « Gérer l'abonnement » ; l'accès reste actif jusqu'à la fin de la période déjà payée.</p>
+          <h3>Données</h3>
+          <p>Nous stockons ton email, un mot de passe chiffré (haché), l'état de ton abonnement et tes réglages (portefeuille de simulation, favoris, alertes). L'administrateur du service peut voir ton email, ton plan, tes paiements, l'adresse <strong>publique</strong> du dernier wallet que tu as connecté et les résultats de ton portefeuille de simulation. Pulse ne demande jamais ta seed phrase et ne détient jamais tes fonds. En mode TEST les wallets sont en lecture seule ; en mode LIVE, chaque transaction est préparée par Pulse puis signée par toi dans ton wallet.</p>
+          <h3>Sources de données</h3>
+          <p>Les données proviennent de services tiers (DexScreener, GeckoTerminal, pump.fun, X, Solana RPC) pouvant être inexactes, retardées ou indisponibles.</p>
+          <p class="legal-note">Texte indicatif : à faire relire par un juriste avant l'ouverture au public.</p>
+        </div>
+      </section>
+    </div>
+    <div class="app-shell">
+      <div class="live-banner" id="live-banner" hidden><strong>● MODE LIVE</strong><span>Les ordres sont réels : chaque transaction est signée par ton wallet et déplace de vrais fonds.</span><b id="live-banner-balance"></b></div>
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="Pulse, accueil">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span>PULSE</span>
+        </a>
+        <nav class="main-nav" aria-label="Navigation principale">
+          <button class="nav-item active" type="button" data-view-tab="positions">Dashboard <span id="position-count">0</span></button>
+          <button class="nav-item" type="button" data-view-tab="history">Historique <span id="history-count">0</span></button>
+          <button class="nav-item" type="button" data-view-tab="scanner">Scanner</button>
+          <button class="nav-item" type="button" data-view-tab="newcoins">Nouveaux <span id="new-count">0</span></button>
+          <button class="nav-item" type="button" data-view-tab="signals">Signaux qualifiés <span id="signals-count">0</span><span class="early-count" id="early-count" hidden>⚡0</span></button>
+          <button class="nav-item" type="button" data-view-tab="standings">Standings</button>
+          <button class="nav-item admin-tab" type="button" data-view-tab="admin" id="admin-tab" hidden>Admin <span class="nav-badge" id="admin-badge" hidden></span></button>
+        </nav>
+        <div class="header-actions">
+          <div class="mode-switch" id="mode-switch" role="group" aria-label="Mode de trading">
+            <button type="button" class="active" data-mode="test" title="Portefeuille de simulation : aucun argent réel">TEST</button>
+            <button type="button" data-mode="live" title="Trading réel avec le solde de ton wallet">LIVE</button>
+          </div>
+          <div class="account-control">
+            <button class="account-button" id="account-button" type="button" aria-label="Mon compte" aria-haspopup="true"><span id="account-initial">?</span></button>
+            <div class="account-menu" id="account-menu" hidden>
+              <div class="account-head"><strong id="account-email">—</strong><span class="plan-pill" id="account-plan">—</span></div>
+              <p class="account-note" id="account-note"></p>
+              <button class="account-action" id="account-manage" type="button">Gérer l'abonnement</button>
+              <button class="account-action" id="account-legal" type="button">Conditions et risques</button>
+              <button class="account-action danger" id="account-logout" type="button">Se déconnecter</button>
+            </div>
+          </div>
+          <div class="notif-control">
+            <button class="notif-button" id="notif-button" type="button" aria-label="Notifications" aria-haspopup="true">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9Z"></path><path d="M10 20a2 2 0 0 0 4 0"></path></svg>
+              <span class="notif-badge" id="notif-badge" hidden>0</span>
+            </button>
+            <div class="notif-menu" id="notif-menu" hidden>
+              <div class="notif-head"><strong>Notifications</strong><button class="text-button" id="notif-read" type="button">Tout marquer lu</button></div>
+              <div class="notif-list" id="notif-list"></div>
+              <div class="notif-settings">
+                <button class="notif-permission" id="notif-permission" type="button">Activer les alertes du navigateur</button>
+                <label><input type="checkbox" id="notif-sound" /> Son</label>
+                <label><input type="checkbox" id="notif-qualified" checked /> Nouveaux signaux qualifiés</label>
+                <label><input type="checkbox" id="notif-early" checked /> Démarrages détectés ⚡</label>
+                <label><input type="checkbox" id="notif-new" /> Nouveaux coins qui passent le filtre</label>
+                <label><input type="checkbox" id="notif-traders" checked /> Trades des traders suivis</label>
+                <label class="notif-min">Montant minimum
+                  <select id="notif-min-trade"><option value="0">Tous</option><option value="100">≥ 100 $</option><option value="500">≥ 500 $</option><option value="1000">≥ 1 000 $</option><option value="5000">≥ 5 000 $</option><option value="25000">≥ 25 000 $</option></select>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="network-status">
+          <span class="live-dot" aria-hidden="true"></span>
+          <span>Solana</span>
+          <span class="paper-badge">PAPER</span>
+          </div>
+          <div class="wallet-control">
+            <button class="wallet-button" id="wallet-button" type="button">
+              <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7.5h14a2 2 0 0 1 2 2v8.5H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"></path><path d="M16 11h4v4h-4a2 2 0 1 1 0-4Z"></path></svg>
+              <span id="wallet-button-label">Connecter wallet</span>
+            </button>
+            <div class="wallet-menu" id="wallet-menu" hidden>
+              <div class="wallet-menu-head"><span>Wallets connectés</span><strong id="wallet-count">0</strong></div>
+              <div class="wallet-rows" id="wallet-rows"></div>
+              <div class="wallet-balance"><span>Total (lecture seule)</span><strong id="wallet-total">— SOL</strong></div>
+              <button class="add-wallet-button" id="add-wallet" type="button">+ Ajouter un wallet</button>
+              <button class="disconnect-button" id="disconnect-all" type="button">Tout déconnecter</button>
+              <p>Mode TEST : lecture seule. Mode LIVE : Pulse demande une signature uniquement pour les ordres que tu confirmes.</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="overview" data-view="scanner" hidden aria-labelledby="page-title">
+          <div class="overview-copy">
+            <h1 id="page-title">Explorer les coins</h1>
+            <p class="eyebrow">MARCHÉ SOLANA <span id="data-source">CONNEXION...</span></p>
+          </div>
+          <div class="stat-strip" aria-label="Résumé du scanner">
+            <article><span>Tokens scannés</span><strong id="stat-scanned">—</strong></article>
+            <article><span>Signaux qualifiés</span><strong id="stat-qualified">—</strong></article>
+            <article><span>Paper wallet</span><strong id="wallet-balance">10 000 $</strong><small id="wallet-pnl">P&L 0,00 $</small></article>
+          </div>
+        </section>
+
+        <section class="admin-view" id="admin-view" data-view="admin" hidden aria-labelledby="admin-title">
+          <div class="signals-head">
+            <div>
+              <p class="eyebrow">ADMINISTRATION <span id="admin-status">chargement…</span></p>
+              <h1 id="admin-title">Abonnés</h1>
+            </div>
+            <p class="signals-help">Vue réservée à l'administrateur : inscriptions, plans, revenus encaissés (Stripe et crypto), dernier wallet connecté et résultats de la simulation de chaque abonné.</p>
+          </div>
+          <div class="kpi-grid" id="admin-kpis"></div>
+          <section class="crypto-admin" aria-labelledby="crypto-admin-title">
+            <div class="crypto-admin-head"><h2 id="crypto-admin-title">Paiements crypto <span class="plan-pill warn" id="crypto-pending-pill" hidden></span></h2><p class="signals-help">Vérifie la transaction sur l'explorateur, puis valide : l'abonné reçoit 30 jours d'accès (ou la durée que tu choisis).</p></div>
+            <div class="table-wrap"><table><thead><tr><th>Abonné</th><th>Méthode</th><th>Montant</th><th>Transaction</th><th>Date</th><th>Statut</th><th>Action</th></tr></thead><tbody id="crypto-admin-body"></tbody></table></div>
+            <div class="empty-state" id="crypto-admin-empty" hidden>Aucun paiement crypto pour l'instant.</div>
+          </section>
+          <div class="new-toolbar">
+            <div class="range-tabs" id="admin-filter" role="group" aria-label="Filtre des abonnés">
+              <button class="active" type="button" data-afilter="all">Tous</button><button type="button" data-afilter="active">Actifs</button><button type="button" data-afilter="paying">Payants</button><button type="button" data-afilter="inactive">Inactifs</button><button type="button" data-afilter="canceled">Annulés</button><button type="button" data-afilter="comped">Offerts</button>
+            </div>
+            <label class="chip-input admin-search"><span>🔍</span><input id="admin-search" type="search" placeholder="Rechercher un email ou un wallet" autocomplete="off" /></label>
+            <button class="text-button" id="admin-sync" type="button">Synchroniser les paiements Stripe</button>
+            <button class="text-button" id="admin-export" type="button">Exporter (CSV)</button>
+          </div>
+          <div class="table-wrap admin-table"><table><thead><tr><th class="col-coin">Abonné</th><th>Inscription</th><th>Plan</th><th>Renouvellement</th><th>Dernier wallet</th><th>Valeur simulée</th><th>Gagné / perdu</th><th>Trades</th><th>Payé</th><th>Dernière activité</th></tr></thead><tbody id="admin-body"></tbody></table></div>
+          <div class="empty-state" id="admin-empty" hidden>Aucun abonné pour ce filtre.</div>
+        </section>
+
+        <section class="history-view" id="history-view" data-view="history" hidden aria-labelledby="history-title">
+          <div class="signals-head">
+            <div>
+              <p class="eyebrow">TRADES CLÔTURÉS <span id="history-status"></span></p>
+              <h1 id="history-title">Historique</h1>
+            </div>
+            <p class="signals-help">Chaque trade fermé, avec le point d'entrée et de sortie, le prix actuel du coin et l'écart depuis ta sortie : <b class="positive">vert</b> si le prix a continué de monter après ta vente, <b class="negative">rouge</b> s'il a baissé. Le filtre indique si le coin passe encore le Filtre Pulse.</p>
+          </div>
+          <div class="history-summary" id="history-summary"></div>
+          <div class="new-toolbar">
+            <div class="range-tabs" id="history-page-filter" role="group" aria-label="Filtre">
+              <button class="active" type="button" data-pfilter="all">Tous</button><button type="button" data-pfilter="win">Gagnants</button><button type="button" data-pfilter="loss">Perdants</button><button type="button" data-pfilter="valid">Passent encore le filtre</button><button type="button" data-pfilter="up">Ont continué de monter</button>
+            </div>
+            <button class="text-button" id="history-export" type="button">Exporter (CSV)</button>
+          </div>
+          <div class="table-wrap history-table"><table><thead><tr><th class="col-coin">Coin</th><th>Clôture</th><th>Entrée</th><th>Sortie</th><th>P&amp;L</th><th>Prix actuel</th><th>Depuis la sortie</th><th>Liquidité</th><th>Filtre Pulse</th></tr></thead><tbody id="history-body"></tbody></table></div>
+          <div class="empty-state" id="history-empty" hidden>Aucun trade clôturé pour ce filtre.</div>
+        </section>
+
+        <section class="newcoins-view" id="newcoins-view" data-view="newcoins" hidden aria-labelledby="newcoins-title">
+          <div class="signals-head">
+            <div>
+              <p class="eyebrow">PUMP.FUN · LES PLUS RÉCENTS <span id="newcoins-status">chargement…</span></p>
+              <h1 id="newcoins-title">Nouveaux coins</h1>
+            </div>
+            <p class="signals-help">Les derniers coins lancés sur pump.fun, comme l'onglet « New » : tu fixes un market cap et un volume 24 h minimum (par défaut ceux de pump.fun). Active « Filtre Pulse complet » pour ajouter la liquidité, les frais et les contrôles de sécurité.</p>
+          </div>
+          <div class="new-toolbar">
+            <label class="chip-input">MC ≥ <span>$</span><input id="new-min-mc" type="number" min="0" step="500" value="5500" inputmode="numeric" /></label>
+            <label class="chip-input">Vol ≥ <span>$</span><input id="new-min-vol" type="number" min="0" step="500" value="9000" inputmode="numeric" /></label>
+            <label class="quality-toggle" title="Ajoute au filtre ci-contre : liquidité ≥ 10 K$, frais ≥ 0,5 SOL, minimums par étape"><input type="checkbox" id="new-filter" /> Filtre Pulse complet <span id="new-hidden"></span></label>
+            <button class="refresh-btn" id="new-refresh" type="button" aria-label="Actualiser" title="Actualiser"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg></button>
+          </div>
+          <div class="table-wrap newcoins-table"><table><thead><tr><th class="col-coin">Coin</th><th>MCAP</th><th>ATH</th><th>Âge</th><th>TXNS</th><th>24H VOL</th><th>Liquidité</th><th>1H</th><th>6H</th><th>Filtre</th></tr></thead><tbody id="newcoins-body"></tbody></table></div>
+          <div class="empty-state" id="newcoins-empty" hidden>Aucun nouveau coin ne passe ces minimums pour le moment. Baisse le market cap ou le volume pour en voir plus.</div>
+        </section>
+
+        <section class="signals-view" id="signals-view" data-view="signals" hidden aria-labelledby="signals-title">
+          <div class="signals-head">
+            <div>
+              <p class="eyebrow">NOTES A ET B <span id="signals-status"></span></p>
+              <h1 id="signals-title">Signaux qualifiés</h1>
+            </div>
+            <p class="signals-help">Tokens qui passent tous les filtres de sécurité et obtiennent un score d'au moins 65. Ce n'est pas une garantie de gain : vérifie la fiabilité du signal dans le Scanner avant de trader.</p>
+          </div>
+          <h2 class="watch-title early-title">⚡ Démarrages détectés <small>début de mouvement avant la grosse hausse</small></h2>
+          <p class="early-help">Coins qui viennent de passer environ +8 à +80 % sur 1 h, encore en hausse, avec volume et achats en accélération, liquides et pas encore étendus. C'est le profil des coins qui finissent par faire +100 % ou +200 %, mais la plupart des démarrages avortent : mets toujours un stop-loss.</p>
+          <div class="signal-cards" id="early-cards"></div>
+          <h2 class="watch-title">Signaux qualifiés <small>filtres de sécurité + score</small></h2>
+          <div class="signal-cards" id="signal-cards"></div>
+          <h2 class="watch-title">À surveiller <small>note C, presque qualifiés</small></h2>
+          <div class="signal-cards" id="watch-cards"></div>
+        </section>
+
+        <section class="standings" id="standings" data-view="standings" hidden aria-labelledby="standings-title">
+          <div class="standings-head">
+            <div>
+              <p class="eyebrow">CLASSEMENT PUMP.FUN <span id="standings-status">chargement…</span></p>
+              <h1 id="standings-title">Standings</h1>
+            </div>
+            <label class="period-select"><span class="sr-only">Compétition</span><select id="competition-select"></select></label>
+          </div>
+          <div class="board-tabs" role="group" aria-label="Type de classement">
+            <button class="active" type="button" data-board="competition">Concours</button>
+            <button type="button" data-board="daily">PnL 24 h</button>
+            <button type="button" data-board="weekly">PnL 7 j</button>
+            <button type="button" data-board="monthly">PnL 30 j</button>
+            <button type="button" data-board="follows">Mes traders <span id="follow-count">0</span></button>
+          </div>
+          <div class="competition-card" id="competition-card"></div>
+          <div class="paper-rank" id="paper-rank"></div>
+          <div class="standings-table" id="standings-table"></div>
+          <div class="follows-panel" id="follows-panel" hidden>
+            <form class="follow-form" id="follow-form">
+              <input id="follow-input" type="text" placeholder="Pseudo pump.fun ou adresse du wallet" autocomplete="off" spellcheck="false" maxlength="44" />
+              <button type="submit">Suivre</button>
+            </form>
+            <p class="follow-hint">Tu reçois une notification quand un trader suivi achète ou vend sur pump.fun (page ouverte). Ajoute aussi des traders depuis les classements avec le bouton « Suivre ».</p>
+            <div class="followed-list" id="followed-list"></div>
+            <h3 class="history-title">Activité récente</h3>
+            <div class="activity-feed" id="activity-feed"></div>
+          </div>
+        </section>
+
+        <section class="workspace" data-view="scanner" hidden aria-label="Scanner de tokens">
+          <div class="market-totals" aria-label="Activité du marché suivi">
+            <div><span>Volume 24 h</span><strong id="total-volume-24h">—</strong></div>
+            <div><span>Transactions 24 h</span><strong id="total-transactions-24h">—</strong></div>
+          </div>
+          <details class="signal-stats" id="signal-stats">
+            <summary>Fiabilité du signal <span id="signal-stats-summary">suivi automatique en cours…</span></summary>
+            <div id="signal-stats-body"></div>
+          </details>
+          <div class="explore-bar">
+            <div class="mode-tabs" role="group" aria-label="Classement du marché">
+              <button class="active" type="button" data-market-mode="trending">Tendance</button>
+              <button type="button" data-market-mode="movers">Movers</button>
+              <button type="button" data-market-mode="new">Nouveaux</button>
+              <button type="button" data-market-mode="top">Market cap</button>
+              <button type="button" data-market-mode="oldest">Plus anciens</button>
+            </div>
+            <div class="explore-controls">
+              <div class="scanner-state"><span class="pulse-ring"></span><strong id="scanner-label">Scanner actif</strong><span id="last-scan">connexion au marché…</span></div>
+              <div class="timeframe-filter" role="group" aria-label="Horizon de variation">
+                <button type="button" data-timeframe="change5m">5m</button><button type="button" data-timeframe="change">1h</button><button class="active" type="button" data-timeframe="change6h">6h</button><button type="button" data-timeframe="change24h">24h</button>
+              </div>
+              <label class="period-select"><span class="sr-only">Période de création</span><select id="age-window"><option value="24">Dernières 24 heures</option><option value="6">Dernières 6 heures</option><option value="168">7 derniers jours</option><option value="all">Toutes les périodes</option></select></label>
+              <label class="volume-select"><span class="sr-only">Volume minimum sur 24 heures</span><select id="minimum-volume"><option value="0">Tous les volumes</option><option value="10000">Volume &gt; 10 k$</option><option value="100000">Volume &gt; 100 k$</option><option value="1000000">Volume &gt; 1 M$</option></select></label>
+              <div class="filters" role="group" aria-label="Filtrer par signal">
+                <button class="filter active" data-filter="all" type="button">Tous</button><button class="filter" data-filter="qualified" type="button">Qualifiés</button><button class="filter" data-filter="risky" type="button">Risqués</button><button class="filter" data-filter="early" type="button">⚡ Démarrage</button><button class="filter" data-filter="pump" type="button">Pump.fun</button><button class="filter" data-filter="watch" type="button">★</button>
+              </div>
+              <label class="quality-toggle" title="Cache les tokens sous les minimums : nouvelle paire ≥ 50 $ de volume, dernière ligne droite ≥ 10 K$ de market cap, migré ≥ 30 K$ de market cap, et au moins 0,5 SOL de frais payés">
+                <input type="checkbox" id="quality-filter" checked /> Filtre Pulse <span id="quality-count"></span>
+              </label>
+              <div class="search-wrap">
+                <label class="search-field">
+                <span class="sr-only">Rechercher un token</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+                <input id="search" type="search" placeholder="Nom ou symbole" autocomplete="off" />
+              </label>
+                <div class="search-results" id="search-results" hidden></div>
+              </div>
+              <button class="refresh-btn" id="refresh" type="button" aria-label="Relancer le scan" title="Relancer le scan">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="scanner-grid">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th class="col-coin"><button class="sort-button" type="button" data-sort="name">Coin</button></th>
+                    <th class="col-graph">Graph</th>
+                    <th><button class="sort-button" type="button" data-sort="marketCap">MCAP</button></th>
+                    <th>ATH</th>
+                    <th><button class="sort-button" type="button" data-sort="ageMinutes">Âge</button></th>
+                    <th><button class="sort-button" type="button" data-sort="transactions">TXNS</button></th>
+                    <th><button class="sort-button" type="button" data-sort="volume24h">24H VOL</button></th>
+                    <th>Traders</th>
+                    <th><button class="sort-button" type="button" data-sort="change">1H</button></th>
+                    <th><button class="sort-button" type="button" data-sort="change6h">6H</button></th>
+                    <th><button class="sort-button" type="button" data-sort="change24h">24H</button></th>
+                    <th><button class="sort-button" type="button" data-sort="score">Signal</button></th>
+                    <th class="col-star"><span class="sr-only">Favori</span></th>
+                  </tr>
+                </thead>
+                <tbody id="token-table"></tbody>
+              </table>
+              <div class="empty-state" id="empty-state" hidden>Aucun token ne correspond à ces filtres.</div>
+            </div>
+
+            
+          </div>
+        </section>
+
+        <section class="positions dashboard" id="positions" data-view="positions" aria-labelledby="positions-title">
+          <div class="section-title">
+            <div><p class="eyebrow">PORTEFEUILLE VIRTUEL <span class="live-badge" id="dash-live">● LIVE</span></p><h2 id="positions-title">Dashboard</h2></div>
+            <button id="reset-wallet" class="text-button" type="button">Réinitialiser</button>
+          </div>
+          <section class="live-only live-dashboard" id="live-dashboard" aria-label="Portefeuille réel">
+            <div class="kpi-grid" id="live-kpis"></div>
+            <div class="dash-head list-head"><strong>Positions de ton wallet</strong><span><button class="text-button" id="live-refresh" type="button">Actualiser</button> <span id="live-meta"></span></span></div>
+            <div class="position-cards" id="live-positions"></div>
+            <div class="dash-head list-head"><strong>Ordres récents</strong></div>
+            <div class="history-list" id="live-orders"></div>
+            <p class="live-note">Les stop-loss et take-profit du mode live sont des <b>alertes</b> : sans ta signature, aucun ordre ne peut être envoyé. Quand une limite est atteinte, tu es notifié et le bouton « Vendre » clignote.</p>
+          </section>
+          <div class="kpi-grid paper-only" id="kpi-grid"></div>
+          <div class="dash-grid paper-only">
+            <div class="dash-card wide">
+              <div class="dash-head"><strong>Évolution du portefeuille</strong>
+                <div class="range-tabs" id="equity-range" role="group" aria-label="Période"><button type="button" data-range="3600000">1 h</button><button type="button" data-range="21600000">6 h</button><button type="button" data-range="86400000">24 h</button><button class="active" type="button" data-range="0">Tout</button></div>
+              </div>
+              <div class="equity-box"><div id="equity-chart"></div><div class="chart-status" id="equity-status" hidden>L’historique se construit au fil du temps : laisse la page ouverte.</div></div>
+            </div>
+            <div class="dash-card">
+              <div class="dash-head"><strong>Répartition</strong></div>
+              <div class="allocation" id="allocation"></div>
+            </div>
+          </div>
+          <div class="dash-head list-head paper-only"><strong>Positions ouvertes</strong><span id="positions-meta"></span></div>
+          <div class="position-cards paper-only" id="positions-list"></div>
+          <div class="dash-grid three paper-only">
+            <div class="dash-card"><div class="dash-head"><strong>P&L par token</strong></div><div class="bars" id="pnl-by-token"></div></div>
+            <div class="dash-card"><div class="dash-head"><strong>P&L par jour</strong><small>14 derniers jours</small></div><div class="day-bars" id="pnl-by-day"></div></div>
+            <div class="dash-card"><div class="dash-head"><strong>Statistiques des trades</strong></div><dl class="stat-list" id="trade-stats"></dl></div>
+          </div>
+          <div class="dash-head list-head paper-only"><strong>Historique des trades</strong>
+            <div class="range-tabs" id="history-filter" role="group" aria-label="Filtre"><button class="active" type="button" data-hfilter="all">Tous</button><button type="button" data-hfilter="win">Gagnants</button><button type="button" data-hfilter="loss">Perdants</button></div>
+          </div>
+          <div class="history-list paper-only" id="history-list"></div>
+          <button class="text-button export-button paper-only" id="export-history" type="button">Exporter l’historique (CSV)</button>
+          <button class="text-button export-button paper-only" id="open-history" type="button">Voir l’historique complet →</button>
+        </section>
+      </main>
+      <div class="coin-modal" id="coin-modal" hidden>
+        <button class="coin-modal-backdrop" type="button" data-close-coin aria-label="Fermer"></button>
+        <div class="coin-dialog" role="dialog" aria-modal="true" aria-label="Détail du coin">
+          <button class="modal-close coin-close" type="button" data-close-coin aria-label="Fermer">×</button>
+          <aside class="detail-panel" id="detail-panel" aria-live="polite">
+              <header class="coin-header">
+                <div class="token-avatar" id="detail-avatar">PB</div>
+                <div class="coin-title">
+                  <div class="coin-name-row"><strong id="detail-name">PEPEBOT</strong><span id="detail-symbol">$PBOT</span></div>
+                  <div class="coin-badges" id="coin-badges"></div>
+                </div>
+                <div class="coin-stats" id="coin-stats"></div>
+                <div class="coin-price">
+                  <span id="price-label">Prix marché</span>
+                  <strong id="detail-price">0,004218 $</strong>
+                  <em id="detail-change">+32,4 %</em>
+                </div>
+                <div class="score-orbit" title="Score du signal d'entrée"><span id="detail-score">86</span><small>/100</small></div>
+              </header>
+
+              <div class="coin-main">
+                <section class="coin-chart-panel" aria-label="Graphique du coin">
+                <div class="chart-toolbar">
+                  <div class="chart-timeframes" role="group" aria-label="Intervalle des bougies">
+                    <button type="button" data-chart-tf="1m">1m</button><button type="button" class="active" data-chart-tf="5m">5m</button><button type="button" data-chart-tf="15m">15m</button><button type="button" data-chart-tf="1h">1h</button><button type="button" data-chart-tf="4h">4h</button><button type="button" data-chart-tf="1d">1j</button>
+                  </div>
+                  <div class="chart-legend"><span class="legend-buy">▲ Achat</span><span class="legend-sell">▼ Vente</span><a id="chart-dex-link" href="#" target="_blank" rel="noopener noreferrer">DexScreener ↗</a></div>
+                </div>
+                <div class="chart-box"><div id="coin-chart"></div><div class="chart-status" id="chart-status" hidden></div></div>
+              </section>
+                <nav class="coin-tabs" id="coin-tabs" role="tablist" aria-label="Analyse du coin">
+                  <button type="button" role="tab" data-ctab="plan" class="active">Plan de trade</button>
+                  <button type="button" role="tab" data-ctab="security">Sécurité &amp; détenteurs</button>
+                  <button type="button" role="tab" data-ctab="signal">Signal &amp; filtres <span class="tab-badge" id="signal-tab-badge" hidden></span></button>
+                  <button type="button" role="tab" data-ctab="news">Actualités X</button>
+                </nav>
+                <div class="coin-pane" data-pane="plan"><section class="plan-panel" id="plan-panel" aria-label="Plan de trade">
+                <div class="plan-head"><strong>Plan de trade</strong><span class="plan-badge" id="plan-badge"></span></div>
+                <div class="plan-body" id="plan-body">Chargement du plan…</div>
+                <div class="plan-actions">
+                  <button class="plan-apply" id="plan-apply" type="button" disabled>Appliquer SL / TP au trade</button>
+                  <label><input type="checkbox" id="plan-lines" checked /> Afficher sur le graphique</label>
+                </div>
+              </section></div>
+                <div class="coin-pane" data-pane="security" hidden><section class="security-panel" id="security-panel" aria-label="Données et sécurité du token">
+                <div class="plan-head"><strong>Token Data &amp; Security</strong><span class="security-note" id="security-note"></span></div>
+                <div class="security-grid" id="security-grid"></div>
+              </section></div>
+                <div class="coin-pane" data-pane="signal" hidden><section class="signal-pane"><div class="checks" id="checks"></div></section></div>
+                <div class="coin-pane" data-pane="news" hidden><section class="x-panel" id="x-panel" aria-label="Actualités X">
+                <div class="x-head"><strong>Actualités X</strong><span class="x-badge" id="x-badge" hidden></span></div>
+                <div class="x-links" id="x-links"></div>
+                <div class="x-body" id="x-body"></div>
+              </section></div>
+              </div>
+
+              <div class="coin-side">
+                <div class="verdict-card" id="verdict-card"></div>
+                <div class="trade-box">
+                <div class="trade-title"><strong id="trade-heading">Paper trade</strong><span class="paper-only">Solde <b id="trade-balance">10 000 $</b></span><span class="live-only" id="live-trade-wallet"></span></div>
+                <label class="paper-only" for="trade-amount">Montant virtuel</label>
+                <div class="amount-input paper-only"><span>$</span><input id="trade-amount" type="number" min="10" max="5000" step="10" value="250" /></div>
+                <div class="quick-amounts paper-only" role="group" aria-label="Montants rapides">
+                  <button type="button" data-amount="100">100 $</button><button type="button" data-amount="250">250 $</button><button type="button" data-amount="500">500 $</button>
+                </div>
+                <div class="trade-limits paper-only">
+                  <label>Stop-loss <span class="limit-input"><input id="stop-loss" type="number" min="1" max="99" step="1" placeholder="—" inputmode="decimal" />%</span></label>
+                  <label>Take-profit <span class="limit-input"><input id="take-profit" type="number" min="1" step="1" placeholder="—" inputmode="decimal" />%</span></label>
+                </div>
+                <div class="preset-box">
+                  <div class="preset-tabs" id="preset-tabs" role="group" aria-label="Preset de frais">
+                    <button type="button" class="active" data-preset="auto">Auto</button><button type="button" data-preset="normal">Normal</button><button type="button" data-preset="aggressive">Aggressive</button><button type="button" data-preset="sniper">Sniper</button>
+                  </div>
+                  <p class="preset-hint" id="preset-hint"></p>
+                  <details class="preset-table"><summary>Tableau des presets de frais</summary><div id="preset-table"></div></details>
+                </div>
+                <div class="live-only live-trade" id="live-trade">
+                  <label for="live-amount">Montant à investir (SOL)</label>
+                  <div class="amount-input"><span>◎</span><input id="live-amount" type="number" min="0.001" step="0.01" value="0.1" /></div>
+                  <div class="quick-amounts" role="group" aria-label="Montants rapides SOL"><button type="button" data-live-amount="0.05">0,05</button><button type="button" data-live-amount="0.1">0,1</button><button type="button" data-live-amount="0.5">0,5</button><button type="button" data-live-amount="1">1</button></div>
+                  <p class="live-hint" id="live-hint"></p>
+                  <label class="live-limit-label" for="live-order-cap">Limite par ordre (SOL)</label>
+                  <div class="amount-input"><span>⛔</span><input id="live-order-cap" type="number" min="0.01" step="0.1" value="1" /></div>
+                </div>
+                <div class="trade-quote paper-only" id="trade-quote" aria-live="polite"></div>
+                <button class="trade-button paper-only" id="trade-button" type="button">Acheter (simulation)</button>
+                <button class="trade-button live-only live-buy" id="live-buy" type="button">Acheter avec mon wallet</button>
+                <p class="paper-only">Aucun ordre réel ne sera envoyé. Frais de 1 %, priority fee, tip et impact de prix simulés.</p>
+                <p class="live-only">Ordre réel : Pulse ne détient pas tes fonds. Tu vérifies puis signes chaque transaction dans ton wallet.</p>
+              </div>
+              </div>
+            </aside>
+        </div>
+      </div>
+      <div class="wallet-modal" id="wallet-modal" hidden>
+        <button class="wallet-modal-backdrop" type="button" data-close-wallet aria-label="Fermer"></button>
+        <section class="wallet-dialog" role="dialog" aria-modal="true" aria-labelledby="wallet-dialog-title">
+          <div class="wallet-dialog-head">
+            <div><p class="eyebrow">SOLANA MAINNET</p><h2 id="wallet-dialog-title">Connecter un wallet</h2></div>
+            <button class="modal-close" type="button" data-close-wallet aria-label="Fermer">×</button>
+          </div>
+          <div class="wallet-tabs" role="tablist" aria-label="Méthode de connexion">
+            <button class="wallet-tab active" id="extension-tab" type="button" role="tab" aria-selected="true" data-wallet-tab="extensions">Extension</button>
+            <button class="wallet-tab" id="qr-tab" type="button" role="tab" aria-selected="false" data-wallet-tab="qr">QR mobile</button>
+          </div>
+          <div class="wallet-tab-panel" id="wallet-extensions" role="tabpanel" aria-labelledby="extension-tab">
+            <div class="wallet-list" id="wallet-list"></div>
+            <div class="wallet-help" id="wallet-help" hidden>
+              <p id="wallet-diagnostic"></p>
+              <ul>
+                <li>Installe un wallet Solana ci-dessus, puis recharge la page en forçant (Cmd+Maj+R).</li>
+                <li>Brave : <em>Réglages → Web3 → Wallet Solana par défaut</em> → « Extensions (sans repli sur Brave Wallet) » pour utiliser Phantom, Solflare…</li>
+                <li>Vérifie que l’extension est autorisée sur ce site (icône puzzle → wallet → Accès au site).</li>
+              </ul>
+              <button class="text-button" id="retry-wallet" type="button">Réessayer la détection</button>
+            </div>
+            <p class="wallet-safety">Tu peux connecter plusieurs wallets en même temps. En mode TEST, Pulse lit uniquement tes adresses publiques ; en mode LIVE, il te demande de signer chaque ordre que tu confirmes. Ne saisis jamais ta seed phrase sur un site.</p>
+          </div>
+          <div class="wallet-tab-panel qr-panel" id="wallet-qr" role="tabpanel" aria-labelledby="qr-tab" hidden>
+            <div id="wc-ready" hidden>
+              <div class="qr-box" id="wc-qr"><span class="qr-placeholder" aria-hidden="true"></span></div>
+              <strong>Scanne avec ton wallet</strong>
+              <p class="wc-status" id="wc-status" role="status">Génération du QR code…</p>
+              <div class="wc-actions"><button class="text-button" id="wc-refresh" type="button">Nouveau QR</button><button class="text-button" id="wc-copy" type="button">Copier le lien</button></div>
+              <ol class="wc-steps">
+                <li>Ouvre ton wallet mobile (Phantom, Solflare, Trust, Backpack, Coinbase…) et choisis « Scanner ».</li>
+                <li>Autorise la connexion dans ton wallet.</li>
+                <li>Signe le message de vérification : il prouve que le wallet est à toi, aucun fonds ne bouge.</li>
+              </ol>
+            </div>
+            <div class="qr-unavailable" id="wc-setup" hidden>
+              <span class="qr-placeholder" aria-hidden="true"></span>
+              <strong>QR code multi-wallets à activer</strong>
+              <p>Crée un projet gratuit sur <b>cloud.reown.com</b>, copie son « Project ID », ajoute-le dans le fichier <code>.env</code> (<code>REOWN_PROJECT_ID=…</code>) puis relance le serveur.</p>
+            </div>
+            <div id="qr-ready" hidden>
+              <img id="phantom-qr" width="220" height="220" alt="QR code pour ouvrir Pulse dans Phantom mobile" />
+              <strong>Scanner avec ton téléphone</strong>
+              <p>Le QR ouvre Pulse dans le navigateur sécurisé de Phantom. Valide ensuite la connexion dans l’application.</p>
+            </div>
+            <div class="qr-unavailable" id="qr-unavailable" hidden>
+              <strong>URL HTTPS requise pour le QR Phantom</strong>
+              <p>Le QR Phantom sera activé après la mise en ligne de Pulse sur un domaine HTTPS vérifié.</p>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    </div>
+    <script type="module" src="./gate.js"></script>
+  </body>
+</html>
