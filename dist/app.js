@@ -1457,6 +1457,104 @@ try {
 
 renderManualOrders();
 
+/* ---- Telegram calls: public channels that announce trades ---- */
+const MAX_CALL_CHANNELS = 8;
+const calls = { channels: [], items: [], seen: new Set(), loaded: false, timer: null };
+try { const saved = JSON.parse(localStorage.getItem("pulse-telegram") || "[]"); if (Array.isArray(saved)) calls.channels = saved.filter(name => /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(name)).slice(0, MAX_CALL_CHANNELS); } catch { /* ignore */ }
+try { calls.seen = new Set(JSON.parse(localStorage.getItem("pulse-telegram-seen") || "[]")); } catch { /* ignore */ }
+const saveCallChannels = () => { try { localStorage.setItem("pulse-telegram", JSON.stringify(calls.channels)); } catch { /* storage unavailable */ } };
+const saveCallSeen = () => { try { localStorage.setItem("pulse-telegram-seen", JSON.stringify([...calls.seen].slice(-300))); } catch { /* storage unavailable */ } };
+
+function renderCallChannels() {
+  document.querySelector("#calls-channels").innerHTML = calls.channels.length
+    ? calls.channels.map(name => `<span class="call-chip">@${esc(name)}<button type="button" data-remove-channel="${esc(name)}" aria-label="Retirer le canal">×</button></span>`).join("")
+    : '<p class="signals-help">Aucun canal pour le moment. Ajoute un canal public ci-dessus.</p>';
+}
+
+function renderCalls() {
+  const list = document.querySelector("#calls-list");
+  document.querySelector("#calls-count").textContent = calls.items.length;
+  if (!calls.channels.length) { list.innerHTML = ""; return; }
+  list.innerHTML = calls.items.length ? calls.items.map(call => {
+    const token = call.token;
+    const change = token.change1h;
+    return `<article class="call-card">
+      <div class="call-head"><strong>$${esc(token.symbol)}</strong> <span>${esc(token.name)}</span><small>@${esc(call.channel)} · ${call.at ? timeAgo(call.at) : ""}</small></div>
+      <p class="call-text">${esc(call.text.slice(0, 220))}</p>
+      <div class="call-stats">
+        <span>Prix <b>${esc(formatPrice(token.price))}</b></span><span>Market cap <b>${esc(formatMarketMoney(token.marketCap))}</b></span><span>Liquidité <b>${esc(formatMarketMoney(token.liquidity))}</b></span>
+        <span>1 h <b class="${change >= 0 ? "positive" : "negative"}">${change == null ? "—" : `${change >= 0 ? "+" : ""}${change.toLocaleString(locale, { maximumFractionDigits: 1 })} %`}</b></span>
+        ${call.sl ? `<span>SL du call <b>${esc(call.sl)}</b></span>` : ""}${call.tp ? `<span>TP du call <b>${esc(call.tp)}</b></span>` : ""}
+      </div>
+      <div class="call-actions"><button class="text-button" type="button" data-open-call="${esc(token.address)}">Analyser dans Pulse</button><a class="text-button" href="${esc(call.url)}" target="_blank" rel="noopener noreferrer">Voir sur Telegram ↗</a></div>
+    </article>`;
+  }).join("") : '<div class="empty-state">Aucune annonce de token trouvée dans les derniers messages de ces canaux.</div>';
+}
+
+async function loadCalls({ background = false } = {}) {
+  if (!calls.channels.length) { calls.items = []; renderCalls(); return; }
+  const status = document.querySelector("#calls-status");
+  if (!background) status.textContent = "chargement…";
+  try {
+    const response = await fetch(`/api/telegram/calls?channels=${encodeURIComponent(calls.channels.join(","))}`, { headers: { accept: "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const errors = Object.entries(payload.errors ?? {}).map(([channel, message]) => `@${channel} : ${message}`);
+    const error = document.querySelector("#calls-error");
+    error.hidden = !errors.length; error.textContent = errors.join(" · ");
+    if (calls.loaded) {
+      for (const call of payload.calls) {
+        const key = `${call.post}`;
+        if (calls.seen.has(key)) continue;
+        notify({ type: "call", tokenId: call.token.address, title: `Call Telegram · $${call.token.symbol}`, body: `@${call.channel} · MCAP ${formatMarketMoney(call.token.marketCap)} · liquidité ${formatMarketMoney(call.token.liquidity)}` });
+      }
+    }
+    for (const call of payload.calls) calls.seen.add(call.post);
+    calls.loaded = true; saveCallSeen();
+    calls.items = payload.calls;
+    status.textContent = `mis à jour ${new Date(payload.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`;
+    renderCalls();
+  } catch {
+    status.textContent = "indisponible";
+  }
+}
+
+document.querySelector("#calls-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const input = document.querySelector("#calls-input");
+  const name = input.value.trim().replace(/^(https?:\/\/)?(t\.me|telegram\.me)\/(s\/)?/i, "").replace(/^@/, "").split(/[/?#]/)[0];
+  if (!/^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(name)) return showToast("Nom de canal invalide : utilise le nom public du canal (5 à 32 caractères).");
+  if (calls.channels.some(item => item.toLowerCase() === name.toLowerCase())) return showToast("Canal déjà ajouté.");
+  if (calls.channels.length >= MAX_CALL_CHANNELS) return showToast(`Limite de ${MAX_CALL_CHANNELS} canaux atteinte.`);
+  calls.channels.push(name); calls.loaded = false; saveCallChannels();
+  input.value = "";
+  renderCallChannels(); loadCalls();
+});
+document.querySelector("#calls-channels").addEventListener("click", event => {
+  const button = event.target.closest("[data-remove-channel]");
+  if (!button) return;
+  calls.channels = calls.channels.filter(name => name !== button.dataset.removeChannel); saveCallChannels();
+  renderCallChannels(); loadCalls();
+});
+document.querySelector("#calls-list").addEventListener("click", async event => {
+  const button = event.target.closest("[data-open-call]");
+  if (!button) return;
+  const address = button.dataset.openCall;
+  if (!tokens.some(token => token.id === address)) {
+    try {
+      const response = await fetch(`/api/search?q=${encodeURIComponent(address)}`, { headers: { accept: "application/json" } });
+      const found = (await response.json()).tokens?.find(token => token.id === address);
+      if (!found) return showToast("Token introuvable sur DexScreener.");
+      state.custom.add(found.id); saveCustom(); tokens.push({ ...found, custom: true, movement: {} });
+    } catch { return showToast("Impossible d'ouvrir ce token pour le moment."); }
+  }
+  showView("scanner");
+  openCoin(address);
+});
+renderCallChannels();
+if (calls.channels.length) { loadCalls({ background: true }); }
+calls.timer = setInterval(() => { if (calls.channels.length) loadCalls({ background: true }); }, 90_000);
+
 /* ---- Views and standings ---- */
 const standingsState = { board: "competition", slug: null, timer: null, data: null };
 const money = value => `${value >= 0 ? "+" : "−"}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1523,6 +1621,7 @@ function showView(view) {
   if (view === "history") { renderHistoryPage(); loadHistoryStatus(); historyPage.timer = setInterval(loadHistoryStatus, 15_000); }
   if (view === "newcoins") { loadNewCoins(); newCoinsTimer = setInterval(loadNewCoins, 10_000); }
   if (view === "signals") renderSignals();
+  if (view === "calls") { renderCallChannels(); loadCalls(); }
   if (view === "positions") { renderPositions(); ensureEquityChart(); }
   if (view === "standings") {
     loadStandings();
@@ -1882,7 +1981,7 @@ function detectNewQualified(live) {
   detectNewEarly();
 }
 
-const NOTIF_ICON = { newcoin: "✦", early: "⚡", trader: "◆", qualified: "●", entry: "◎", "take-profit": "▲", "stop-loss": "▼" };
+const NOTIF_ICON = { call: "✈", newcoin: "✦", early: "⚡", trader: "◆", qualified: "●", entry: "◎", "take-profit": "▲", "stop-loss": "▼" };
 
 function timeAgo(timestamp) {
   const minutes = Math.floor((Date.now() - timestamp) / 60_000);

@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { getTelegramCalls, isValidChannel, normalizeChannel } from "./telegram-calls.mjs";
 import { getHeldTokens, getLiveQuotes, getTokenFeed, getTokenStatuses, searchTokens } from "./token-service.mjs";
 import { getSolBalance, isValidSolanaAddress } from "./wallet-balance.mjs";
 import { createPhantomQrSvg } from "./wallet-qr.mjs";
@@ -27,6 +28,7 @@ const PORT = Number(process.env.PORT ?? 4173);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const APP_URL = (process.env.APP_URL ?? `http://${HOST}:${PORT}`).replace(/\/+$/, "");
 const store = openStore(process.env.DATABASE_FILE ?? fileURLToPath(new URL("../data/pulse.db", import.meta.url)));
+const telegramRequests = new Map();
 const liveTradingConfig = liveConfig();
 let feeProblem = null;
 if (liveTradingConfig.platformFeeAccount) {
@@ -238,6 +240,14 @@ const server = createServer(async (request, response) => {
         console.warn("Search unavailable:", error.message);
         sendJson(response, 502, { error: "Search unavailable" });
       }
+      return;
+    }
+    if (url.pathname === "/api/telegram/calls") {
+      const channels = (url.searchParams.get("channels") ?? "").split(",").map(normalizeChannel).filter(isValidChannel).slice(0, 8);
+      if (!channels.length) { sendJson(response, 400, { error: "Aucun canal valide." }); return; }
+      if (isRateLimited(telegramRequests, clientOf(request), 15)) { sendJson(response, 429, { error: "Trop de requêtes." }); return; }
+      try { sendJson(response, 200, await getTelegramCalls(channels)); }
+      catch (error) { console.warn("Telegram calls unavailable:", error.message); sendJson(response, 502, { error: "Annonces Telegram indisponibles." }); }
       return;
     }
     if (url.pathname === "/api/token-status") {

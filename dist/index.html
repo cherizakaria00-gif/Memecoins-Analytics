@@ -257,6 +257,7 @@
           <button class="nav-item" type="button" data-view-tab="scanner">Scanner</button>
           <button class="nav-item" type="button" data-view-tab="newcoins">Nouveaux <span id="new-count">0</span></button>
           <button class="nav-item" type="button" data-view-tab="signals">Signaux qualifiés <span id="signals-count">0</span><span class="early-count" id="early-count" hidden>⚡0</span></button>
+          <button class="nav-item" type="button" data-view-tab="calls">Calls Telegram <span id="calls-count">0</span></button>
           <button class="nav-item" type="button" data-view-tab="standings">Standings</button>
           <button class="nav-item admin-tab" type="button" data-view-tab="admin" id="admin-tab" hidden>Admin <span class="nav-badge" id="admin-badge" hidden></span></button>
         </nav>
@@ -416,6 +417,17 @@
           <div class="signal-cards" id="signal-cards"></div>
           <h2 class="watch-title">À surveiller <small>note C, presque qualifiés</small></h2>
           <div class="signal-cards" id="watch-cards"></div>
+        </section>
+
+        <section class="calls-view" id="calls-view" data-view="calls" hidden aria-labelledby="calls-title">
+          <div class="signals-head">
+            <div><p class="eyebrow">ANNONCES DE TRADERS <span id="calls-status"></span></p><h1 id="calls-title">Calls Telegram</h1></div>
+            <p class="signals-help">Ajoute des canaux Telegram publics qui annoncent des trades : Pulse lit leurs messages, repère le token annoncé et affiche ses chiffres actuels. Beaucoup de calls sont des opérations de pump &amp; dump : vérifie toujours le coin (signal, liquidité, détenteurs) avant d'acheter, et ne suis jamais un call à l'aveugle.</p>
+          </div>
+          <form class="calls-add" id="calls-form"><input id="calls-input" type="text" placeholder="Nom du canal public ou lien t.me (ex. t.me/nom_du_canal)" autocomplete="off" aria-label="Canal Telegram" /><button class="text-button" type="submit">Ajouter le canal</button></form>
+          <div class="calls-channels" id="calls-channels"></div>
+          <p class="auth-error" id="calls-error" role="alert" hidden></p>
+          <div class="calls-list" id="calls-list"></div>
         </section>
 
         <section class="standings" id="standings" data-view="standings" hidden aria-labelledby="standings-title">
