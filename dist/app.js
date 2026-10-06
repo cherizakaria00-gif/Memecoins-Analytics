@@ -3,6 +3,7 @@ import { createCoinChart } from "./coin-chart.js";
 import { createEquityChart } from "./equity-chart.js";
 import { addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "./dashboard.js";
 import { base58Encode, base64ToBytes, costBasis, describeOrder, lamportsToSol, limitBreach, orderPrioritySol, positionValue as livePositionValue, rawFraction, rawToUi, upsertOrder } from "./live.js";
+import { DEFAULT_BOT, botPnlToday, botStats, normalizeBot, pickEntries } from "./autobot.js";
 import { buildTradePlan, exitAdvice, planPercents } from "./trade-plan.js";
 import { detectWallets, iconForName, removeWallet, shortAddress, toAddress, totalSol, upsertWallet } from "./wallets.js";
 import { FEE_PRESETS, START_BALANCE, buildTradeMarkers, costsFor, presetById, presetForCapital, checkTriggers, normalizeWallet, sellFraction, openPosition, positionValue, pushHistory, quoteBuy, summarizeHistory, validateBuy } from "./paper-trading.js";
@@ -1344,6 +1345,8 @@ async function loadTokens(refresh = false) {
     state.market.live = Boolean(payload.live);
     state.market.updatedAt = new Date(payload.updatedAt).getTime();
     state.market.nextRefreshAt = Date.now() + LIVE_REFRESH_MS;
+    runBot();
+    saveWallet();
     document.querySelector("#scanner-label").textContent = payload.live ? "Marché live" : "Mode simulation";
     return true;
   } catch (error) {
@@ -2599,6 +2602,8 @@ async function setMode(mode) {
   state.mode = mode;
   try { localStorage.setItem("pulse-mode", mode); } catch { /* storage unavailable */ }
   applyMode();
+  if (mode === "live" && bot.config.enabled) { bot.config.enabled = false; botLog("Bot désactivé : passage en mode LIVE."); saveBot(); }
+  renderBot();
   showToast(mode === "live" ? "Mode LIVE activé : les ordres sont réels." : "Mode TEST : portefeuille de simulation.");
 }
 
@@ -2927,3 +2932,69 @@ document.querySelector("#live-refresh").addEventListener("click", () => refreshL
 setInterval(() => { if (liveActive() && !document.hidden) refreshLive(); }, LIVE_WALLET_REFRESH_MS);
 window.addEventListener("pulse-wallets-changed", () => { if (liveActive()) refreshLive(); });
 applyMode();
+
+/* ---- Auto-trade bot (TEST mode): fixed entry size and exit percentages ---- */
+const BOT_FIELDS = ["minScore", "sizePct", "maxAmount", "stopLossPct", "takeProfitPct", "maxOpen", "dailyLossPct", "cooldownHours"];
+const BOT_LOG_LIMIT = 40;
+function loadBot() { try { return normalizeBot(JSON.parse(localStorage.getItem("pulse-bot") || "null")); } catch { return normalizeBot(null); } }
+function loadBotLog() { try { const log = JSON.parse(localStorage.getItem("pulse-bot-log") || "[]"); return Array.isArray(log) ? log.filter(item => item && typeof item.text === "string").slice(0, BOT_LOG_LIMIT) : []; } catch { return []; } }
+const bot = { config: loadBot(), log: loadBotLog(), entries: {} };
+function saveBot() {
+  try { localStorage.setItem("pulse-bot", JSON.stringify(bot.config)); localStorage.setItem("pulse-bot-log", JSON.stringify(bot.log)); } catch { /* storage unavailable */ }
+}
+function botLog(text) { bot.log.unshift({ at: Date.now(), text }); bot.log = bot.log.slice(0, BOT_LOG_LIMIT); }
+
+function runBot() {
+  if (state.mode === "live" || !bot.config.enabled || !tokens.length || !state.market.live) return;
+  for (const position of state.positions) if (position.auto && position.openedAt) bot.entries[position.tokenId] = Math.max(bot.entries[position.tokenId] ?? 0, position.openedAt);
+  for (const trade of state.history) if (trade.auto) bot.entries[trade.tokenId] = Math.max(bot.entries[trade.tokenId] ?? 0, trade.openedAt ?? 0);
+  const { buys, paused } = pickEntries({ tokens, positions: state.positions, history: state.history, balance: state.balance, startBalance: START_BALANCE, config: bot.config, lastEntries: bot.entries, isQualified });
+  bot.paused = paused;
+  for (const { token, amount, score, source } of buys) {
+    const preset = activePreset(amount);
+    const costs = costsFor(preset, currentSolUsd());
+    if (validateBuy(token, amount, state.balance, { preset, costs })) continue;
+    state.balance -= amount;
+    const position = { ...openPosition(token, amount, { costs, preset, stopLossPct: bot.config.stopLossPct, takeProfitPct: bot.config.takeProfitPct }), auto: true };
+    state.positions.unshift(position);
+    bot.entries[token.id] = position.openedAt;
+    botLog(`Achat ${formatMoney(amount)} · $${token.symbol} (${source === "early" ? "⚡ démarrage" : "qualifié"}, score ${score}) · SL −${bot.config.stopLossPct} % · TP +${bot.config.takeProfitPct} %`);
+    notify({ type: "entry", tokenId: token.id, title: `Bot : achat · $${token.symbol}`, body: `${formatMoney(amount)} · SL −${bot.config.stopLossPct} % · TP +${bot.config.takeProfitPct} %` });
+  }
+  if (buys.length) { saveBot(); renderPositions(); }
+  renderBot();
+}
+
+function renderBot() {
+  const card = document.querySelector("#bot-card");
+  if (!card) return;
+  const { config } = bot;
+  document.querySelector("#bot-enabled").checked = config.enabled;
+  const live = state.mode === "live";
+  document.querySelector("#bot-state").textContent = live ? "Indisponible en LIVE" : config.enabled ? (bot.paused === "daily-loss" ? "En pause" : "Actif") : "Désactivé";
+  document.querySelector("#bot-source").value = config.source;
+  for (const field of BOT_FIELDS) { const input = document.querySelector(`#bot-${field}`); if (input && document.activeElement !== input) input.value = config[field]; }
+  const stats = botStats(state.history);
+  const open = state.positions.filter(position => position.auto).length;
+  const pnlToday = botPnlToday(state.history);
+  const parts = [`${open} / ${config.maxOpen} position${open > 1 ? "s" : ""} bot`, `${stats.count} trade${stats.count > 1 ? "s" : ""} clôturé${stats.count > 1 ? "s" : ""}`];
+  if (stats.winRate != null) parts.push(`réussite ${stats.winRate.toFixed(0)} %`, `P&L bot ${stats.pnl >= 0 ? "+" : ""}${formatMoney(stats.pnl, 2)}`);
+  parts.push(`aujourd'hui ${pnlToday >= 0 ? "+" : ""}${formatMoney(pnlToday, 2)}`);
+  const status = document.querySelector("#bot-status");
+  status.className = `bot-status ${bot.paused === "daily-loss" ? "warn" : ""}`;
+  status.textContent = (bot.paused === "daily-loss" ? "⏸ Perte maximale du jour atteinte : le bot reprend demain. · " : "") + parts.join(" · ");
+  document.querySelector("#bot-log").innerHTML = bot.log.length
+    ? bot.log.slice(0, 8).map(item => `<div><time>${new Date(item.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span>${esc(item.text)}</span></div>`).join("")
+    : '<div class="muted">Aucune action pour le moment.</div>';
+}
+
+document.querySelector("#bot-enabled").addEventListener("change", event => {
+  if (state.mode === "live") { event.target.checked = false; showToast("Le bot ne trade qu'en mode TEST : en LIVE, tu signes chaque ordre."); return; }
+  bot.config.enabled = event.target.checked;
+  botLog(bot.config.enabled ? "Bot activé." : "Bot désactivé.");
+  saveBot(); renderBot();
+  if (bot.config.enabled) runBot();
+});
+document.querySelector("#bot-source").addEventListener("change", event => { bot.config = normalizeBot({ ...bot.config, source: event.target.value }); saveBot(); renderBot(); });
+for (const field of BOT_FIELDS) document.querySelector(`#bot-${field}`).addEventListener("change", event => { bot.config = normalizeBot({ ...bot.config, [field]: event.target.value }); saveBot(); renderBot(); });
+renderBot();

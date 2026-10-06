@@ -501,6 +501,27 @@
             <p class="live-note">Les stop-loss et take-profit du mode live sont des <b>alertes</b> : sans ta signature, aucun ordre ne peut être envoyé. Quand une limite est atteinte, tu es notifié et le bouton « Vendre » clignote.</p>
           </section>
           <div class="kpi-grid paper-only" id="kpi-grid"></div>
+          <section class="bot-card paper-only" id="bot-card" aria-labelledby="bot-title">
+            <div class="bot-head">
+              <div><p class="eyebrow">TRADING AUTOMATIQUE · MODE TEST</p><h3 id="bot-title">Bot de trade automatique</h3></div>
+              <label class="switch"><input id="bot-enabled" type="checkbox" /><span class="switch-track" aria-hidden="true"></span><span id="bot-state">Désactivé</span></label>
+            </div>
+            <p class="bot-intro">Le bot achète tout seul les signaux qui respectent tes règles, puis sort au stop-loss ou au take-profit fixés. Il ne trade qu'avec le portefeuille de simulation : en mode LIVE, chaque ordre doit être signé par toi.</p>
+            <div class="bot-grid">
+              <label>Signaux utilisés<select id="bot-source"><option value="both">Qualifiés + démarrages ⚡</option><option value="qualified">Signaux qualifiés</option><option value="early">Démarrages ⚡</option></select></label>
+              <label>Score minimum<input id="bot-minScore" type="number" min="0" max="100" step="1" /></label>
+              <label>Taille d'entrée (% du solde)<input id="bot-sizePct" type="number" min="0.5" max="50" step="0.5" /></label>
+              <label>Montant max par trade ($)<input id="bot-maxAmount" type="number" min="10" step="10" /></label>
+              <label>Stop-loss (%)<input id="bot-stopLossPct" type="number" min="1" max="90" step="1" /></label>
+              <label>Take-profit (%)<input id="bot-takeProfitPct" type="number" min="1" max="1000" step="1" /></label>
+              <label>Positions bot max<input id="bot-maxOpen" type="number" min="1" max="20" step="1" /></label>
+              <label>Perte max par jour (% du capital)<input id="bot-dailyLossPct" type="number" min="0.5" max="100" step="0.5" /></label>
+              <label>Pas de ré-entrée avant (h)<input id="bot-cooldownHours" type="number" min="0" max="168" step="1" /></label>
+            </div>
+            <div class="bot-status" id="bot-status"></div>
+            <div class="bot-log" id="bot-log"></div>
+            <p class="bot-warning">Le bot n'améliore pas les signaux : il applique mécaniquement les mêmes règles. Regarde la fiabilité des signaux dans le Scanner (taux de démarrages à +50 % et à −25 %) avant de lui faire confiance, et garde la perte max par jour basse. Une simulation ne garantit rien en réel.</p>
+          </section>
           <div class="dash-grid paper-only">
             <div class="dash-card wide">
               <div class="dash-head"><strong>Évolution du portefeuille</strong>

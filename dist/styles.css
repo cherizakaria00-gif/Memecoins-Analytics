@@ -1036,3 +1036,16 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .results-disclaimer { max-width: 760px; margin: 16px 0 0; color: var(--muted); font-size: .74rem; line-height: 1.55; }
 @media (max-width: 700px) { .result-row { grid-template-columns: 1fr auto; gap: 4px 12px; } .result-row span:nth-of-type(1) { grid-column: 1; font-size: .74rem; } .result-row span:nth-of-type(2) { grid-column: 1; font-size: .8rem; } .result-row em { grid-column: 2; grid-row: 1 / span 2; } }
 .result-row { grid-template-columns: minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.7fr) 180px; } @media (max-width: 700px) { .result-row { grid-template-columns: 1fr auto; } }
+
+/* ---- Auto-trade bot card ---- */
+.bot-card { margin: 18px 0; padding: 20px; border: 1px solid #2f6b45; border-radius: 14px; background: linear-gradient(180deg, #0f1c14, #0d1511); }
+.bot-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; } .bot-head h3 { margin: 4px 0 0; font-size: 1.15rem; }
+.bot-intro { margin: 10px 0 16px; color: #a9b3b4; font-size: .84rem; line-height: 1.55; }
+.bot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; } .bot-grid label { display: grid; gap: 6px; color: var(--muted); font-size: .74rem; }
+.bot-grid input, .bot-grid select { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #0c0e0f; color: var(--text); font: inherit; font-size: .84rem; }
+.bot-status { margin-top: 14px; padding: 10px 12px; border-radius: 8px; background: #0c1710; border: 1px solid #1f3a2a; color: #bbf7d0; font-size: .78rem; } .bot-status.warn { background: #231c0c; border-color: #5a4a22; color: #fbbf24; }
+.bot-log { display: grid; gap: 4px; margin-top: 10px; font-size: .76rem; color: #b6c8bd; } .bot-log div { display: flex; gap: 10px; } .bot-log time { color: var(--muted); flex: none; }
+.bot-warning { margin: 14px 0 0; color: var(--muted); font-size: .72rem; line-height: 1.55; }
+.switch { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; font-size: .8rem; color: var(--text); white-space: nowrap; } .switch input { position: absolute; opacity: 0; }
+.switch-track { position: relative; width: 42px; height: 24px; border-radius: 999px; background: #2a3032; transition: background .2s; } .switch-track::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #e5e7eb; transition: transform .2s; }
+.switch input:checked + .switch-track { background: #22c55e; } .switch input:checked + .switch-track::after { transform: translateX(18px); } .switch input:focus-visible + .switch-track { outline: 2px solid var(--acid); outline-offset: 2px; }
