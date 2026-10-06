@@ -112,3 +112,9 @@ export function barScale(items, key = "total") {
   const max = Math.max(...items.map(item => Math.abs(item[key])), 0);
   return items.map(item => ({ ...item, width: max > 0 ? Math.abs(item[key]) / max : 0 }));
 }
+
+/** Loss → profit transition of a position: "down" until it reaches +enter %, back to "down" at 0 % or below, unchanged in between. */
+export function profitTransition(previous, pct, enter = 0.5) {
+  const next = pct >= enter ? "up" : pct <= 0 ? "down" : previous ?? "down";
+  return { next, crossed: previous === "down" && next === "up" };
+}

@@ -1,7 +1,7 @@
 import { locale, t } from "./i18n.js";
 import { createCoinChart } from "./coin-chart.js";
 import { createEquityChart } from "./equity-chart.js";
-import { addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "./dashboard.js";
+import { profitTransition, addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "./dashboard.js";
 import { base58Encode, base64ToBytes, costBasis, describeOrder, lamportsToSol, limitBreach, orderPrioritySol, positionValue as livePositionValue, rawFraction, rawToUi, upsertOrder } from "./live.js";
 import { DEFAULT_BOT, botPnlToday, botStats, normalizeBot, normalizePending, pickEntries } from "./autobot.js";
 import { buildTradePlan, exitAdvice, planPercents } from "./trade-plan.js";
@@ -1318,6 +1318,44 @@ function runTriggers() {
   return fired.length > 0;
 }
 
+/* ---- Positions turning positive: animated notification ---- */
+const PROFIT_ENTER_PCT = 0.5;
+const profitState = new Map();
+
+function showProfitToast({ symbol, pct, pnl, tokenId }) {
+  const node = document.createElement("div");
+  node.className = "profit-toast";
+  node.setAttribute("role", "status");
+  node.innerHTML = `<span class="profit-burst" aria-hidden="true">${Array.from({ length: 10 }, (_, index) => `<i style="--a:${index * 36}deg"></i>`).join("")}</span>
+    <span class="profit-icon" aria-hidden="true">▲</span>
+    <div><strong>$${esc(symbol)} passe en positif</strong><small>${signed(pct)} · ${signedMoney(pnl)}</small></div>`;
+  node.addEventListener("click", () => { if (tokenId && tokens.some(token => token.id === tokenId)) openCoin(tokenId); node.remove(); });
+  document.body.append(node);
+  setTimeout(() => node.classList.add("leaving"), 4200);
+  setTimeout(() => node.remove(), 4800);
+}
+
+/** Fires once when a paper position moves from loss to profit (net of fees and price impact); a small hysteresis avoids flicker around zero. */
+function detectProfitCrossings() {
+  if (state.mode === "live") return;
+  const open = new Set(state.positions.map(position => position.id));
+  for (const id of profitState.keys()) if (!open.has(id)) profitState.delete(id);
+  for (const position of state.positions) {
+    const token = tokenFor(position);
+    if (!token || !(token.price > 0)) continue;
+    const pct = (positionValue(position, token) - position.amount) / position.amount * 100;
+    const previous = profitState.get(position.id);
+    const { next, crossed } = profitTransition(previous, pct, PROFIT_ENTER_PCT);
+    profitState.set(position.id, next);
+    if (!crossed || !notifState.profit) continue;
+    const pnl = positionValue(position, token) - position.amount;
+    notify({ type: "profit", tokenId: position.tokenId, title: `Position en positif · $${position.tokenSymbol}`, body: `${signed(pct)} · ${signedMoney(pnl)}`, toast: false });
+    showProfitToast({ symbol: position.tokenSymbol, pct, pnl, tokenId: position.tokenId });
+    const card = document.querySelector(`[data-pid="${CSS.escape(position.id)}"]`);
+    if (card) { card.classList.remove("flash-up"); void card.offsetWidth; card.classList.add("flash-up"); }
+  }
+}
+
 document.querySelector("#positions-list").addEventListener("change", event => {
   const input = event.target.closest("[data-limit]");
   const position = input && state.positions.find(item => item.id === input.dataset.position);
@@ -1382,6 +1420,7 @@ async function loadTokens(refresh = false) {
       if (live?.price > 0) { position.lastPrice = live.price; position.liquidity = live.liquidity ?? position.liquidity; }
     }
     runTriggers();
+    detectProfitCrossings();
     saveWallet();
     if (!tokens.some(token => token.id === state.selected)) state.selected = tokens[0].id;
     document.querySelector("#stat-scanned").textContent = Number(payload.scanned ?? 0).toLocaleString(locale);
@@ -1957,6 +1996,7 @@ function loadNotifState() {
       sound: saved?.sound ?? false,
       qualified: saved?.qualified ?? true,
       early: saved?.early ?? true,
+      profit: saved?.profit ?? true,
       newCoins: saved?.newCoins ?? false,
       traders: saved?.traders ?? true,
       minTrade: Number.isFinite(saved?.minTrade) ? saved.minTrade : 500,
@@ -1979,7 +2019,7 @@ function playChime(type) {
   if (!notifState.sound) return;
   try {
     const context = playChime.context ??= new AudioContext();
-    const tones = type === "stop-loss" ? [330, 220] : type === "take-profit" ? [660, 880] : [520, 780];
+    const tones = type === "stop-loss" ? [330, 220] : type === "take-profit" ? [660, 880] : type === "profit" ? [523, 659, 784] : [520, 780];
     tones.forEach((frequency, index) => {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
@@ -1994,12 +2034,12 @@ function playChime(type) {
   } catch { /* audio blocked until the user interacts with the page */ }
 }
 
-function notify({ type, title, body, tokenId = null }) {
+function notify({ type, title, body, tokenId = null, toast = true }) {
   notifState.items.unshift({ id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type, title, body, tokenId, at: Date.now(), read: false });
   notifState.items = notifState.items.slice(0, NOTIF_LIMIT);
   saveNotifState();
   renderNotifications();
-  showToast(`${title} — ${body}`);
+  if (toast) showToast(`${title} — ${body}`);
   playChime(type);
   if ("Notification" in window && Notification.permission === "granted") {
     try {
@@ -2033,7 +2073,7 @@ function detectNewQualified(live) {
   detectNewEarly();
 }
 
-const NOTIF_ICON = { call: "✈", newcoin: "✦", early: "⚡", trader: "◆", qualified: "●", entry: "◎", "take-profit": "▲", "stop-loss": "▼" };
+const NOTIF_ICON = { profit: "▲", call: "✈", newcoin: "✦", early: "⚡", trader: "◆", qualified: "●", entry: "◎", "take-profit": "▲", "stop-loss": "▼" };
 
 function timeAgo(timestamp) {
   const minutes = Math.floor((Date.now() - timestamp) / 60_000);
@@ -2053,6 +2093,7 @@ function renderNotifications() {
   document.querySelector("#notif-qualified").checked = notifState.qualified;
   document.querySelector("#notif-traders").checked = notifState.traders;
   document.querySelector("#notif-early").checked = notifState.early;
+  document.querySelector("#notif-profit").checked = notifState.profit;
   document.querySelector("#notif-new").checked = notifState.newCoins;
   document.querySelector("#notif-min-trade").value = String(notifState.minTrade);
   const permission = document.querySelector("#notif-permission");
@@ -2100,6 +2141,7 @@ document.querySelector("#notif-new").addEventListener("change", event => {
   notifState.newCoins = event.target.checked;
   saveNotifState();
 });
+document.querySelector("#notif-profit").addEventListener("change", event => { notifState.profit = event.target.checked; saveNotifState(); });
 document.querySelector("#notif-early").addEventListener("change", event => {
   notifState.early = event.target.checked;
   saveNotifState();
@@ -2218,6 +2260,7 @@ async function liveTick() {
   liveTicks += 1;
 
   const fired = runTriggers();
+  detectProfitCrossings();
   if (fired) { saveWallet(); renderTable(); renderPositions(); }
   else updateWalletUI();
   const selected = changed.find(token => token.id === state.selected);

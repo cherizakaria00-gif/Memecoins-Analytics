@@ -1078,5 +1078,9 @@ export default {
 "Token refusé par Telegram : vérifie-le dans @BotFather.": "Token rejected by Telegram: check it in @BotFather.",
 "Groupes privés indisponibles : APP_SECRET n'est pas configuré sur ce serveur.": "Private groups unavailable: APP_SECRET is not configured on this server.",
 "Telegram indisponible pour le moment.": "Telegram unavailable right now.",
-"Token illisible : reconnecte ton bot.": "Unreadable token: reconnect your bot."
+"Token illisible : reconnecte ton bot.": "Unreadable token: reconnect your bot.",
+"Position qui passe en positif": "Position turning positive",
+"Position en positif · $§": "Position in profit · $§",
+"passe en positif": "turns positive",
+"$§ passe en positif": "$§ turns positive"
 };

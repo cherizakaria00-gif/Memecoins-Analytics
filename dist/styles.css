@@ -1084,3 +1084,17 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .calls-steps { margin: 10px 0 14px; padding-left: 20px; display: grid; gap: 6px; color: #b6c8bd; font-size: .82rem; line-height: 1.5; } .calls-steps code { padding: 1px 6px; border-radius: 5px; background: #0c0e0f; color: #86efac; font-size: .78rem; }
 .tg-bot-status { margin-top: 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; } .tg-bot-status:empty { display: none; }
 .bot-check { grid-column: 1 / -1; display: flex !important; flex-direction: row !important; align-items: center; gap: 10px !important; color: var(--text) !important; font-size: .8rem !important; } .bot-check input { width: auto !important; height: auto !important; accent-color: #22c55e; }
+
+/* ---- Position turns positive: animated notification ---- */
+.profit-toast { position: fixed; top: 84px; left: 50%; z-index: 250; display: flex; align-items: center; gap: 14px; padding: 14px 20px 14px 14px; border: 1px solid #22c55e; border-radius: 16px; background: linear-gradient(135deg, #0f2a1a, #0b1710); box-shadow: 0 20px 60px rgba(0, 0, 0, .55), 0 0 40px rgba(74, 222, 128, .35); cursor: pointer; transform: translate(-50%, -30px) scale(.9); opacity: 0; animation: profitIn .55s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+.profit-toast.leaving { animation: profitOut .5s ease-in forwards; }
+.profit-toast strong { display: block; font-size: .95rem; color: #e8f9ee; } .profit-toast small { display: block; margin-top: 2px; color: #86efac; font: 700 .86rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.profit-icon { position: relative; width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; background: #16a34a; color: #fff; font-size: 1.1rem; box-shadow: 0 0 0 0 rgba(74, 222, 128, .6); animation: profitPulse 1.2s ease-out 3; }
+.profit-burst { position: absolute; left: 35px; top: 50%; width: 0; height: 0; pointer-events: none; } .profit-burst i { position: absolute; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: #86efac; opacity: 0; animation: profitSpark .9s ease-out .15s; transform: rotate(var(--a)) translateX(0); } .profit-burst i:nth-child(3n) { background: #fbbf24; } .profit-burst i:nth-child(3n + 1) { background: #bbf7d0; }
+@keyframes profitIn { to { transform: translate(-50%, 0) scale(1); opacity: 1; } }
+@keyframes profitOut { to { transform: translate(-50%, -24px) scale(.95); opacity: 0; } }
+@keyframes profitPulse { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, .6); } 100% { box-shadow: 0 0 0 18px rgba(74, 222, 128, 0); } }
+@keyframes profitSpark { 0% { opacity: 1; transform: rotate(var(--a)) translateX(6px); } 100% { opacity: 0; transform: rotate(var(--a)) translateX(46px) scale(.4); } }
+.position-card.flash-up { animation: cardFlash 1.6s ease-out; } @keyframes cardFlash { 0% { box-shadow: 0 0 0 2px #4ade80, 0 0 40px rgba(74, 222, 128, .55); background: #12301d; } 100% { box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .profit-icon, .profit-burst i, .position-card.flash-up { animation: none; } .profit-toast { animation-duration: .01s; } }
+@media (max-width: 600px) { .profit-toast { top: 70px; width: calc(100vw - 32px); } }

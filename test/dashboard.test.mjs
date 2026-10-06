@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "../dist/dashboard.js";
+import { profitTransition, addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "../dist/dashboard.js";
 
 const trade = (pnl, tokenId = "a", extra = {}) => ({ pnl, tokenId, tokenSymbol: tokenId.toUpperCase(), openedAt: 0, closedAt: 600_000, ...extra });
 
@@ -75,4 +75,16 @@ test("formats durations and bar widths", () => {
   assert.equal(formatDuration(5 * 86_400_000), "5 j");
   assert.equal(formatDuration(NaN), "—");
   assert.deepEqual(barScale([{ total: 50 }, { total: -100 }]).map(item => item.width), [0.5, 1]);
+});
+
+test("a position notifies once when it turns positive, with a hysteresis around zero", () => {
+  assert.deepEqual(profitTransition(undefined, 3), { next: "up", crossed: false }, "first sight: baseline only");
+  assert.deepEqual(profitTransition(undefined, -4), { next: "down", crossed: false });
+  assert.deepEqual(profitTransition("down", 0.2), { next: "down", crossed: false }, "below the +0.5 % threshold");
+  assert.deepEqual(profitTransition("down", 0.8), { next: "up", crossed: true });
+  assert.deepEqual(profitTransition("up", 2), { next: "up", crossed: false }, "already positive: no repeat");
+  assert.deepEqual(profitTransition("up", 0.2), { next: "up", crossed: false }, "dips between 0 and 0.5 % keep the state");
+  const dipped = profitTransition("up", -0.1);
+  assert.deepEqual(dipped, { next: "down", crossed: false });
+  assert.equal(profitTransition(dipped.next, 1.2).crossed, true, "a new crossing after a real dip notifies again");
 });
