@@ -983,5 +983,9 @@ export default {
 "Take-profit atteint · $SAMPLE · +$152": "Take-profit hit · $SAMPLE · +$152",
 "2 / 3 positions bot · réussite 72 % · aujourd'hui +$38": "2 / 3 bot positions · 72% success · today +$38",
 "Bot bot": "Bot",
-"Bot": "Bot"
+"Bot": "Bot",
+"Exemples de trades du simulateur": "Simulator trade examples",
+"Flux animé d'exemples : des trades générés pour la démonstration, avec des gains et des pertes, comme dans le simulateur de Pulse (stop-loss et take-profit automatiques, frais et slippage inclus).": "Animated example feed: trades generated for the demonstration, with gains and losses, as in Pulse's simulator (automatic stop-loss and take-profit, fees and slippage included).",
+"Démo animée · données d'exemple": "Animated demo · example data",
+"Résultats simulés et générés à titre d'exemple : ce ne sont ni des avis clients ni des performances réelles. Une sélection de trades gagnants ne montre pas les pertes, qui existent aussi. Aucun résultat futur n'est garanti.": "Results simulated and generated as examples: they are neither customer reviews nor real performance. A selection of winning trades does not show the losses, which also happen. No future result is guaranteed."
 };

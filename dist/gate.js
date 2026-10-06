@@ -67,6 +67,48 @@ $("#mock-switch").addEventListener("click", event => {
   $("#bot-mock").classList.toggle("is-off", !on);
 });
 
+/* ---- Landing: animated example feed of simulated trades (generated for the demo, wins and losses) ---- */
+const FEED_SYMBOLS = ["ZAPPY", "MOONCAT", "PIXEL", "NOVA", "FROGGY", "TURBO", "KAIJU", "GLITCH", "ORBIT", "DOGEX", "WAFFLE", "COMET"];
+const pick = list => list[Math.floor(Math.random() * list.length)];
+const pad = value => String(value).padStart(2, "0");
+const feedMoney = value => `${value >= 0 ? "+" : "−"}$${Math.abs(value).toFixed(2)}`;
+
+function makeTrade() {
+  const amount = pick([250, 250, 500, 500, 1000]);
+  const roll = Math.random();
+  let pct; let reason = "";
+  if (roll < 0.1) { pct = 25 + Math.random() * 40; reason = "take-profit"; }
+  else if (roll < 0.62) pct = 1 + Math.random() * 10;
+  else if (roll < 0.82) { pct = -(8 + Math.random() * 17); reason = "stop-loss"; }
+  else pct = -(1 + Math.random() * 6);
+  const pnl = amount * pct / 100;
+  const now = new Date();
+  return { symbol: pick(FEED_SYMBOLS), at: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`, amount, exit: amount + pnl, reason, pnl, pct };
+}
+
+function feedRow(trade) {
+  const row = document.createElement("div");
+  row.className = "result-row";
+  const cells = [["b", `$${trade.symbol}`], ["span", trade.at], ["span", `$${trade.amount.toFixed(2)} → $${trade.exit.toFixed(2)}${trade.reason ? ` · ${trade.reason}` : ""}`], ["em", `${feedMoney(trade.pnl)} (${trade.pct >= 0 ? "+" : "−"}${Math.abs(trade.pct).toFixed(1)}%)`]];
+  for (const [tag, text] of cells) { const node = document.createElement(tag); node.textContent = text; row.append(node); }
+  if (trade.pnl < 0) row.classList.add("loss");
+  return row;
+}
+
+const feed = $("#results-feed");
+if (feed) {
+  let visible = true;
+  new IntersectionObserver(entries => { visible = entries[0].isIntersecting; }).observe(feed);
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  setInterval(() => {
+    if (!visible || document.hidden) return;
+    const row = feedRow(makeTrade());
+    if (!still) row.classList.add("enter");
+    feed.prepend(row);
+    while (feed.children.length > 7) feed.lastElementChild.remove();
+  }, 2800);
+}
+
 /* ---- Legal modal ---- */
 const legal = $("#legal-modal");
 document.querySelectorAll("[data-open-legal]").forEach(button => button.addEventListener("click", () => { legal.hidden = false; }));
