@@ -71,21 +71,26 @@ async function resolveAddress(address, { fetchImpl, now }) {
 
 const summarize = token => ({ address: token.address, name: token.name, symbol: token.symbol, price: token.price, marketCap: token.marketCap, liquidity: token.liquidity, volume24h: token.volume24h, change1h: token.change ?? null, ageMinutes: token.ageMinutes ?? null, pump: Boolean(token.pump) });
 
-/** Latest calls of the given channels (newest first) that point at a real Solana token, with current market data. */
-export async function getTelegramCalls(channels, { fetchImpl = fetch, now = Date.now() } = {}) {
-  const wanted = [...new Set(channels.map(normalizeChannel).filter(isValidChannel))].slice(0, MAX_CHANNELS);
-  const outcomes = await Promise.allSettled(wanted.map(channel => fetchChannel(channel, { fetchImpl, now })));
-  const errors = {};
-  const messages = [];
-  outcomes.forEach((outcome, index) => { if (outcome.status === "fulfilled") messages.push(...outcome.value); else errors[wanted[index]] = outcome.reason?.message ?? "Erreur"; });
-  const withAddress = messages.filter(message => message.addresses.length).sort((first, second) => (second.at ?? 0) - (first.at ?? 0)).slice(0, 30);
+/** Turns messages that contain addresses into calls pointing at a real Solana token (newest first). */
+export async function callsFromMessages(messages, { fetchImpl = fetch, now = Date.now(), limit = 30 } = {}) {
+  const withAddress = messages.filter(message => message.addresses.length).sort((first, second) => (second.at ?? 0) - (first.at ?? 0)).slice(0, limit);
   const calls = [];
   for (const message of withAddress) {
     let token = null;
     for (const address of message.addresses) { token = await resolveAddress(address, { fetchImpl, now }); if (token) break; }
-    if (token) calls.push({ channel: message.channel, post: message.post, url: `https://t.me/${message.post}`, at: message.at, text: message.text, sl: message.sl, tp: message.tp, token: summarize(token) });
+    if (token) calls.push({ channel: message.channel, post: message.post, url: message.post.startsWith("private:") ? null : `https://t.me/${message.post}`, private: message.post.startsWith("private:"), at: message.at, text: message.text, sl: message.sl, tp: message.tp, token: summarize(token) });
   }
-  return { calls, errors, channels: wanted, at: now };
+  return calls;
+}
+
+/** Latest calls of the given public channels (newest first) with current market data. */
+export async function getTelegramCalls(channels, { fetchImpl = fetch, now = Date.now(), extraMessages = [] } = {}) {
+  const wanted = [...new Set(channels.map(normalizeChannel).filter(isValidChannel))].slice(0, MAX_CHANNELS);
+  const outcomes = await Promise.allSettled(wanted.map(channel => fetchChannel(channel, { fetchImpl, now })));
+  const errors = {};
+  const messages = [...extraMessages];
+  outcomes.forEach((outcome, index) => { if (outcome.status === "fulfilled") messages.push(...outcome.value); else errors[wanted[index]] = outcome.reason?.message ?? "Erreur"; });
+  return { calls: await callsFromMessages(messages, { fetchImpl, now }), errors, channels: wanted, at: now };
 }
 
 export const _test = { channelCache, resolveCache };

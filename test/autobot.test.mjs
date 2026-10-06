@@ -102,3 +102,14 @@ test("saved pending orders are sanitised", () => {
   assert.deepEqual(normalizePending("x"), []);
   assert.equal(normalizePending([{ tokenId: "a", limitPrice: 1, expiresAt: 5 }, { tokenId: 4 }, null]).length, 1);
 });
+
+test("Telegram calls are only used when enabled and when the token passes the Pulse filter", () => {
+  const called = token("t", { fromCall: true, early: undefined });
+  const unqualified = token("u", { fromCall: true, signal: { tradable: false } });
+  const tokens = [called, unqualified];
+  assert.equal(run({ tokens, config: { ...IMMEDIATE, source: "early", useCalls: false } }).buys.length, 0);
+  const on = run({ tokens, config: { ...IMMEDIATE, source: "early", useCalls: true } });
+  assert.deepEqual(on.buys.map(buy => [buy.token.id, buy.source]), [["t", "call"]]);
+  assert.equal(normalizeBot({ useCalls: "yes" }).useCalls, false);
+  assert.equal(normalizeBot({ useCalls: true }).useCalls, true);
+});

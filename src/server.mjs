@@ -3,7 +3,9 @@ import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { getTelegramCalls, isValidChannel, normalizeChannel } from "./telegram-calls.mjs";
+import { callsFromMessages, getTelegramCalls, isValidChannel, normalizeChannel } from "./telegram-calls.mjs";
+import { connectBot, encryptToken, privateMessages, pullMessages } from "./telegram-bot.mjs";
+import { isSameOrigin } from "./saas-routes.mjs";
 import { getHeldTokens, getLiveQuotes, getTokenFeed, getTokenStatuses, searchTokens } from "./token-service.mjs";
 import { getSolBalance, isValidSolanaAddress } from "./wallet-balance.mjs";
 import { createPhantomQrSvg } from "./wallet-qr.mjs";
@@ -29,6 +31,7 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 const APP_URL = (process.env.APP_URL ?? `http://${HOST}:${PORT}`).replace(/\/+$/, "");
 const store = openStore(process.env.DATABASE_FILE ?? fileURLToPath(new URL("../data/pulse.db", import.meta.url)));
 const telegramRequests = new Map();
+const APP_SECRET = process.env.APP_SECRET && process.env.APP_SECRET.length >= 16 ? process.env.APP_SECRET : null;
 const liveTradingConfig = liveConfig();
 let feeProblem = null;
 if (liveTradingConfig.platformFeeAccount) {
@@ -185,6 +188,40 @@ const server = createServer(async (request, response) => {
       } catch (error) {
         if (error instanceof LiveTradingError) sendJson(response, error.status, { error: error.message });
         else { console.warn("Live trading route failed:", error.message); sendJson(response, 502, { error: "Service de trading momentanément indisponible." }); }
+      }
+      return;
+    }
+    if (url.pathname.startsWith("/api/telegram/") && url.pathname !== "/api/telegram/calls") {
+      const denied = saas.gate(request);
+      if (denied) { sendJson(response, denied.status, denied.body); return; }
+      if (request.method !== "GET" && !isSameOrigin(request)) { sendJson(response, 403, { error: "Origine non autorisée." }); return; }
+      if (!APP_SECRET) { sendJson(response, 503, { error: "Groupes privés indisponibles : APP_SECRET n'est pas configuré sur ce serveur." }); return; }
+      if (isRateLimited(telegramRequests, clientOf(request), 30)) { sendJson(response, 429, { error: "Trop de requêtes." }); return; }
+      try {
+        if (url.pathname === "/api/telegram/bot" && request.method === "POST") {
+          let body;
+          try { body = JSON.parse(await readBody(request, 2_000)); } catch { throw Object.assign(new Error("Requête invalide."), { status: 400 }); }
+          const token = String(body?.token ?? "").trim();
+          const { username } = await connectBot(token);
+          store.saveTelegramBot({ userId: request.user.id, tokenEnc: encryptToken(token, APP_SECRET), username, now: Date.now() });
+          sendJson(response, 200, { connected: true, username });
+          return;
+        }
+        if (url.pathname === "/api/telegram/bot" && request.method === "DELETE") {
+          store.deleteTelegramBot(request.user.id);
+          sendJson(response, 200, { connected: false });
+          return;
+        }
+        if (url.pathname === "/api/telegram/private" && request.method === "GET") {
+          const status = await pullMessages({ store, userId: request.user.id, secret: APP_SECRET });
+          if (!status.connected) { sendJson(response, 200, { connected: false, calls: [] }); return; }
+          sendJson(response, 200, { connected: true, username: status.username, calls: await callsFromMessages(privateMessages(store, request.user.id)), at: Date.now() });
+          return;
+        }
+        sendJson(response, 404, { error: "Introuvable." });
+      } catch (error) {
+        if (error.status && error.status < 500) sendJson(response, error.status, { error: error.message });
+        else { console.warn("Telegram bot route failed:", error.message?.replace(/bot\d+:[\w-]+/g, "bot***")); sendJson(response, 502, { error: "Telegram indisponible pour le moment." }); }
       }
       return;
     }
