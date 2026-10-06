@@ -1017,5 +1017,15 @@ export default {
 "$§ · achat à $§": "$§ · buy at $§",
 "expire dans § min": "expires in § min",
 "Entrée sur repli": "Entry on pullback",
-": au lieu d'acheter au sommet, un ordre limite attend un recul (−3 % par défaut) sous le prix du signal.": ": instead of buying at the top, a limit order waits for a pullback (−3% by default) below the signal price."
+": au lieu d'acheter au sommet, un ordre limite attend un recul (−3 % par défaut) sous le prix du signal.": ": instead of buying at the top, a limit order waits for a pullback (−3% by default) below the signal price.",
+"0 = achat immédiat. Sinon un ordre limite attend que le prix baisse de ce pourcentage (valable 60 min).": "0 = buy immediately. Otherwise a limit order waits for the price to drop by this percentage (valid 60 min).",
+"Ordre limite placé : $§ à $§ (−§ %), valable § min.": "Limit order placed: $§ at $§ (−§%), valid § min.",
+"Ordre limite annulé.": "Limit order canceled.",
+"Ordre limite expiré · $§": "Limit order expired · $§",
+"Le prix n'est pas descendu à $§.": "The price did not drop to $§.",
+"Ordre limite annulé · $§": "Limit order canceled · $§",
+"Ordre limite exécuté · $§": "Limit order executed · $§",
+"Achat § sur repli (−§ %)": "Buy § on pullback (−§%)",
+"$§ · achat § à $§ (−§ %)": "$§ · buy § at $§ (−§%)",
+"· achat § à $§ (−§ %)": " · buy § at $§ (−§%)"
 };

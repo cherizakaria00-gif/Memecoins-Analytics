@@ -6,7 +6,7 @@ import { base58Encode, base64ToBytes, costBasis, describeOrder, lamportsToSol, l
 import { DEFAULT_BOT, botPnlToday, botStats, normalizeBot, normalizePending, pickEntries } from "./autobot.js";
 import { buildTradePlan, exitAdvice, planPercents } from "./trade-plan.js";
 import { detectWallets, iconForName, removeWallet, shortAddress, toAddress, totalSol, upsertWallet } from "./wallets.js";
-import { FEE_PRESETS, START_BALANCE, buildTradeMarkers, costsFor, presetById, presetForCapital, checkTriggers, normalizeWallet, sellFraction, openPosition, positionValue, pushHistory, quoteBuy, summarizeHistory, validateBuy } from "./paper-trading.js";
+import { normalizeLimitOrders, settleLimitOrders, FEE_PRESETS, START_BALANCE, buildTradeMarkers, costsFor, presetById, presetForCapital, checkTriggers, normalizeWallet, sellFraction, openPosition, positionValue, pushHistory, quoteBuy, summarizeHistory, validateBuy } from "./paper-trading.js";
 
 let tokens = [
   { id: "pbot", name: "PEPEBOT", symbol: "PBOT", initials: "PB", age: "18 min", liquidity: 184200, volume: 96200, change: 32.4, risk: "Faible", score: 86, price: 0.004218, accent: "#b8f55d", holders: "1 842", lock: "100 %", top10: "18,2 %", mint: true, freeze: true },
@@ -1224,16 +1224,65 @@ document.querySelector("#trade-button").addEventListener("click", () => {
   const costs = costsFor(preset, currentSolUsd());
   const error = validateBuy(token, amount, state.balance, { preset, costs });
   if (error) return showToast(error);
+  const stopLossPct = document.querySelector("#stop-loss").value;
+  const takeProfitPct = document.querySelector("#take-profit").value;
+  const dip = Math.min(Math.max(Number(document.querySelector("#trade-dip").value) || 0, 0), 30);
+  try { localStorage.setItem("pulse-limits", JSON.stringify({ sl: stopLossPct, tp: takeProfitPct, dip: String(dip) })); } catch { /* storage unavailable */ }
+  if (dip > 0) {
+    const now = Date.now();
+    manualOrders.push({ id: `${token.id}-${now}`, tokenId: token.id, symbol: token.symbol, amount, limitPrice: token.price * (1 - dip / 100), refPrice: token.price, dipPct: dip, stopLossPct: optionalNumber(stopLossPct), takeProfitPct: optionalNumber(takeProfitPct), createdAt: now, expiresAt: now + MANUAL_ORDER_MINUTES * 60_000 });
+    saveManualOrders(); renderManualOrders();
+    showToast(`Ordre limite placé : $${token.symbol} à $${(token.price * (1 - dip / 100)).toLocaleString(locale, { maximumSignificantDigits: 4 })} (−${dip} %), valable ${MANUAL_ORDER_MINUTES} min.`);
+    return;
+  }
   state.balance -= amount;
-  try { localStorage.setItem("pulse-limits", JSON.stringify({ sl: document.querySelector("#stop-loss").value, tp: document.querySelector("#take-profit").value })); } catch { /* storage unavailable */ }
-  state.positions.unshift(openPosition(token, amount, {
-    costs, preset,
-    stopLossPct: document.querySelector("#stop-loss").value,
-    takeProfitPct: document.querySelector("#take-profit").value
-  }));
+  state.positions.unshift(openPosition(token, amount, { costs, preset, stopLossPct, takeProfitPct }));
   saveWallet(); renderPositions();
   showToast(`Achat simulé de ${formatMoney(amount)} sur $${token.symbol}${state.market.live ? "" : " (prix simulés)"}.`);
 });
+
+/* ---- Manual limit orders: buy on a pullback ---- */
+const MANUAL_ORDER_MINUTES = 60;
+const optionalNumber = value => { const number = Number(value); return Number.isFinite(number) && number > 0 ? number : null; };
+let manualOrders = (() => { try { return normalizeLimitOrders(JSON.parse(localStorage.getItem("pulse-manual-orders") || "[]")); } catch { return []; } })();
+function saveManualOrders() { try { localStorage.setItem("pulse-manual-orders", JSON.stringify(manualOrders)); } catch { /* storage unavailable */ } }
+
+function renderManualOrders() {
+  const node = document.querySelector("#manual-orders");
+  if (!node) return;
+  node.innerHTML = manualOrders.length
+    ? `<div class="dash-head list-head"><strong>Ordres limites en attente</strong></div>${manualOrders.map(order => `<div class="limit-order"><span><b>$${esc(order.symbol)}</b> · achat ${formatMoney(order.amount)} à $${order.limitPrice.toLocaleString(locale, { maximumSignificantDigits: 4 })} (−${order.dipPct} %)</span><small>expire dans ${Math.max(0, Math.ceil((order.expiresAt - Date.now()) / 60_000))} min</small><button class="text-button" type="button" data-cancel-order="${esc(order.id)}">Annuler</button></div>`).join("")}`
+    : "";
+}
+document.querySelector("#manual-orders").addEventListener("click", event => {
+  const button = event.target.closest("[data-cancel-order]");
+  if (!button) return;
+  manualOrders = manualOrders.filter(order => order.id !== button.dataset.cancelOrder);
+  saveManualOrders(); renderManualOrders();
+  showToast("Ordre limite annulé.");
+});
+
+function runManualOrders() {
+  if (state.mode === "live" || !manualOrders.length || !tokens.length || !state.market.live) return;
+  const { filled, expired, waiting } = settleLimitOrders(manualOrders, id => tokenFor({ tokenId: id }));
+  manualOrders = waiting;
+  for (const order of expired) notify({ type: "entry", tokenId: order.tokenId, title: `Ordre limite expiré · $${order.symbol}`, body: `Le prix n'est pas descendu à $${order.limitPrice.toLocaleString(locale, { maximumSignificantDigits: 4 })}.` });
+  let bought = false;
+  for (const { order, token } of filled) {
+    const preset = activePreset(order.amount);
+    const costs = costsFor(preset, currentSolUsd());
+    const error = validateBuy(token, order.amount, state.balance, { preset, costs });
+    if (error) { notify({ type: "entry", tokenId: order.tokenId, title: `Ordre limite annulé · $${order.symbol}`, body: error }); continue; }
+    state.balance -= order.amount;
+    state.positions.unshift(openPosition(token, order.amount, { costs, preset, stopLossPct: order.stopLossPct, takeProfitPct: order.takeProfitPct }));
+    bought = true;
+    notify({ type: "entry", tokenId: order.tokenId, title: `Ordre limite exécuté · $${order.symbol}`, body: `Achat ${formatMoney(order.amount)} sur repli (−${order.dipPct} %)` });
+  }
+  if (filled.length || expired.length) saveManualOrders();
+  if (bought) renderPositions();
+  renderManualOrders();
+}
+
 function sellPosition(positionId, fraction, reason = "manual") {
   const index = state.positions.findIndex(position => position.id === positionId);
   if (index === -1) return null;
@@ -1346,6 +1395,7 @@ async function loadTokens(refresh = false) {
     state.market.updatedAt = new Date(payload.updatedAt).getTime();
     state.market.nextRefreshAt = Date.now() + LIVE_REFRESH_MS;
     runBot();
+    runManualOrders();
     saveWallet();
     document.querySelector("#scanner-label").textContent = payload.live ? "Marché live" : "Mode simulation";
     return true;
@@ -1402,8 +1452,10 @@ initialize().catch(error => {
 
 try {
   const limits = JSON.parse(localStorage.getItem("pulse-limits") || "null");
-  if (limits) { document.querySelector("#stop-loss").value = limits.sl ?? ""; document.querySelector("#take-profit").value = limits.tp ?? ""; }
+  if (limits) { document.querySelector("#stop-loss").value = limits.sl ?? ""; document.querySelector("#take-profit").value = limits.tp ?? ""; document.querySelector("#trade-dip").value = limits.dip ?? "0"; }
 } catch { /* ignore corrupt saved limits */ }
+
+renderManualOrders();
 
 /* ---- Views and standings ---- */
 const standingsState = { board: "competition", slug: null, timer: null, data: null };

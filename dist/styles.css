@@ -1070,3 +1070,4 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .result-row.loss em { color: #f87171; }
 .plan-fee { margin: -12px 0 18px; color: #9fc9ae; font-size: .76rem; line-height: 1.5; } .plan-fee[hidden] { display: none; }
 .bot-pending { margin-top: 10px; display: grid; gap: 4px; font-size: .76rem; color: #b6c8bd; } .bot-pending:empty { display: none; } .bot-pending strong { color: var(--text); font-size: .74rem; } .bot-pending div { display: flex; justify-content: space-between; gap: 10px; } .bot-pending small { color: var(--muted); }
+.manual-orders { margin-bottom: 14px; } .manual-orders:empty { display: none; } .limit-order { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-top: 6px; border: 1px dashed #2f6b45; border-radius: 10px; background: #0c1710; font-size: .82rem; } .limit-order small { margin-left: auto; color: var(--muted); }

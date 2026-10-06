@@ -171,6 +171,27 @@ export function normalizeWallet(raw) {
   return { balance: Number.isFinite(balance) && balance >= 0 ? balance : START_BALANCE, positions, history };
 }
 
+/** Rebuilds safe manual limit orders from untrusted localStorage content. */
+export function normalizeLimitOrders(raw) {
+  return (Array.isArray(raw) ? raw : []).filter(order => order && typeof order.tokenId === "string" && isPositive(Number(order.limitPrice)) && isPositive(Number(order.amount)) && Number(order.expiresAt) > 0)
+    .map(order => ({
+      id: String(order.id ?? `${order.tokenId}-${order.createdAt ?? 0}`), tokenId: order.tokenId, symbol: String(order.symbol ?? "").slice(0, 20), amount: Number(order.amount),
+      limitPrice: Number(order.limitPrice), refPrice: Number(order.refPrice) || Number(order.limitPrice), dipPct: Number(order.dipPct) || 0,
+      stopLossPct: optionalPercent(order.stopLossPct), takeProfitPct: optionalPercent(order.takeProfitPct), createdAt: Number(order.createdAt) || 0, expiresAt: Number(order.expiresAt)
+    })).slice(0, 20);
+}
+
+/** Splits limit orders into filled (price at or below the limit), expired and still waiting. `tokenFor(id)` returns the live token. */
+export function settleLimitOrders(orders, tokenFor, now = Date.now()) {
+  const filled = []; const expired = []; const waiting = [];
+  for (const order of orders) {
+    if (now >= order.expiresAt) { expired.push(order); continue; }
+    const token = tokenFor(order.tokenId);
+    if (token && isPositive(token.price) && token.price <= order.limitPrice) filled.push({ order, token }); else waiting.push(order);
+  }
+  return { filled, expired, waiting };
+}
+
 export const TIMEFRAME_SECONDS = { "1m": 60, "5m": 300, "15m": 900, "1h": 3600, "4h": 14400, "1d": 86400 };
 
 /**

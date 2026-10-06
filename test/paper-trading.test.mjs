@@ -148,3 +148,21 @@ test("manual sells respect the sell slippage while stop-loss sells are forced", 
   const partial = sellFraction(position, thin, 0.1, { force: false });
   assert.equal(Boolean(partial.blocked), false);
 });
+
+test("manual limit orders: sanitising and settling against live prices", async () => {
+  const { normalizeLimitOrders, settleLimitOrders } = await import("../dist/paper-trading.js");
+  assert.deepEqual(normalizeLimitOrders("x"), []);
+  const orders = normalizeLimitOrders([
+    { id: "a", tokenId: "A", symbol: "A", amount: 250, limitPrice: 0.97, expiresAt: 2_000, stopLossPct: "20", takeProfitPct: "" },
+    { id: "b", tokenId: "B", symbol: "B", amount: 100, limitPrice: 1, expiresAt: 500 },
+    { tokenId: "C", amount: -5, limitPrice: 1, expiresAt: 9 }, null
+  ]);
+  assert.equal(orders.length, 2);
+  assert.deepEqual([orders[0].stopLossPct, orders[0].takeProfitPct], [20, null]);
+  const prices = { A: 0.96, B: 0.5 };
+  const result = settleLimitOrders(orders, id => ({ price: prices[id] }), 1_000);
+  assert.deepEqual(result.filled.map(item => item.order.id), ["a"]);
+  assert.deepEqual(result.expired.map(order => order.id), ["b"], "expired before it could fill");
+  assert.equal(settleLimitOrders(orders, () => ({ price: 1.2 }), 100).waiting.length, 2);
+  assert.equal(settleLimitOrders(orders, () => null, 100).waiting.length, 2, "unknown token: keeps waiting");
+});

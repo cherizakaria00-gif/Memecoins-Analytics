@@ -572,6 +572,7 @@
             </div>
           </div>
           <div class="dash-head list-head paper-only"><strong>Positions ouvertes</strong><span id="positions-meta"></span></div>
+          <div class="manual-orders paper-only" id="manual-orders"></div>
           <div class="position-cards paper-only" id="positions-list"></div>
           <div class="dash-grid three paper-only">
             <div class="dash-card"><div class="dash-head"><strong>P&L par token</strong></div><div class="bars" id="pnl-by-token"></div></div>
@@ -654,6 +655,7 @@
                 <div class="trade-limits paper-only">
                   <label>Stop-loss <span class="limit-input"><input id="stop-loss" type="number" min="1" max="99" step="1" placeholder="—" inputmode="decimal" />%</span></label>
                   <label>Take-profit <span class="limit-input"><input id="take-profit" type="number" min="1" step="1" placeholder="—" inputmode="decimal" />%</span></label>
+                  <label class="dip-label" title="0 = achat immédiat. Sinon un ordre limite attend que le prix baisse de ce pourcentage (valable 60 min).">Entrée sur repli <span class="limit-input"><input id="trade-dip" type="number" min="0" max="30" step="0.5" value="0" inputmode="decimal" />%</span></label>
                 </div>
                 <div class="preset-box">
                   <div class="preset-tabs" id="preset-tabs" role="group" aria-label="Preset de frais">
