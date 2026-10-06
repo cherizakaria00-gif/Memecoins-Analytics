@@ -2,8 +2,11 @@
  * Entry point: checks the account and the subscription, restores the user's synced settings into localStorage,
  * and only then loads the application (app.js). Anonymous and unsubscribed visitors see the landing page / paywall.
  */
+import { lang, locale, setLang, t } from "./i18n.js";
 const SYNC_INTERVAL_MS = 15_000;
 const $ = selector => document.querySelector(selector);
+document.querySelectorAll("[data-lang-label]").forEach(node => { node.textContent = lang === "fr" ? "English" : "Français"; });
+document.querySelectorAll("[data-lang-switch]").forEach(button => button.addEventListener("click", () => setLang(lang === "fr" ? "en" : "fr")));
 const setAccess = state => { document.body.dataset.access = state; };
 
 async function api(path, { method = "GET", body } = {}) {
@@ -228,7 +231,7 @@ $("#paywall-dev").addEventListener("click", async () => {
 });
 
 /* ---- Account menu ---- */
-const dateText = ms => new Date(ms).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+const dateText = ms => new Date(ms).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 
 function renderAccount(me) {
   const { user, access } = me;
@@ -249,7 +252,7 @@ $("#account-button").addEventListener("click", () => { const menu = $("#account-
 document.addEventListener("click", event => { if (!event.target.closest(".account-control")) $("#account-menu").hidden = true; });
 $("#account-manage").addEventListener("click", async event => {
   event.currentTarget.disabled = true;
-  try { window.location.assign((await api("/api/billing/portal", { method: "POST" })).url); } catch (error) { alert(error.message); event.currentTarget.disabled = false; }
+  try { window.location.assign((await api("/api/billing/portal", { method: "POST" })).url); } catch (error) { alert(t(error.message)); event.currentTarget.disabled = false; }
 });
 
 /* ---- Settings sync (localStorage <-> account) ---- */

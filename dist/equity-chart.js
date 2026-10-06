@@ -1,3 +1,4 @@
+import { locale } from "./i18n.js";
 import { AreaSeries, ColorType, createChart } from "./vendor/lightweight-charts.js";
 
 const UP = { line: "#4ade80", top: "rgba(74, 222, 128, 0.28)", bottom: "rgba(74, 222, 128, 0.02)" };
@@ -13,7 +14,7 @@ export function createEquityChart(container, baseline) {
     grid: { vertLines: { visible: false }, horzLines: { color: "#15181a" } },
     rightPriceScale: { borderColor: "#232628" },
     timeScale: { borderColor: "#232628", timeVisible: true, secondsVisible: false, tickMarkFormatter: localTime },
-    localization: { timeFormatter: seconds => `${pad(new Date(seconds * 1000).getDate())}/${pad(new Date(seconds * 1000).getMonth() + 1)} ${localTime(seconds)}`, priceFormatter: price => `${price.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} $` }
+    localization: { timeFormatter: seconds => `${pad(new Date(seconds * 1000).getDate())}/${pad(new Date(seconds * 1000).getMonth() + 1)} ${localTime(seconds)}`, priceFormatter: price => `${price.toLocaleString(locale, { maximumFractionDigits: 0 })} $` }
   });
   const series = chart.addSeries(AreaSeries, { lineWidth: 2, priceLineVisible: true, lastValueVisible: true });
   series.createPriceLine({ price: baseline, color: "#596164", lineStyle: 2, lineWidth: 1, axisLabelVisible: false, title: "départ" });

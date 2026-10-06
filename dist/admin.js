@@ -1,10 +1,11 @@
 /** Admin dashboard: subscribers, plans, collected revenue, last wallet and paper-trading results. Loaded on demand. */
+import { locale, t } from "./i18n.js";
 const $ = selector => document.querySelector(selector);
 const esc = value => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
-const money = (cents, decimals = 0) => `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} $`;
-const usd = value => `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString("fr-FR", { maximumFractionDigits: 0 })} $`;
-const date = ms => (ms ? new Date(ms).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }) : "—");
-const dateTime = ms => (ms ? new Date(ms).toLocaleString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
+const money = (cents, decimals = 0) => `${(cents / 100).toLocaleString(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals })} $`;
+const usd = value => `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString(locale, { maximumFractionDigits: 0 })} $`;
+const date = ms => (ms ? new Date(ms).toLocaleDateString(locale, { day: "2-digit", month: "short", year: "numeric" }) : "—");
+const dateTime = ms => (ms ? new Date(ms).toLocaleString(locale, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
 const short = address => `${address.slice(0, 4)}…${address.slice(-4)}`;
 
 const PLAN_LABEL = { active: ["Actif", "ok"], trialing: ["Essai", "ok"], past_due: ["Retard de paiement", "warn"], canceled: ["Annulé", "bad"], incomplete: ["Incomplet", "warn"], none: ["Aucun plan", "neutral"], comped: ["Offert", "blue"] };
@@ -45,7 +46,7 @@ function renderRows() {
       ? `<a class="wallet-link" href="https://solscan.io/account/${esc(subscriber.lastWallet.address)}" target="_blank" rel="noopener noreferrer" title="${esc(subscriber.lastWallet.address)}">${esc(short(subscriber.lastWallet.address))}</a><small class="since-note">${esc(subscriber.lastWallet.name ?? "")}${subscriber.lastWallet.at ? ` · ${esc(date(subscriber.lastWallet.at))}` : ""}</small>`
       : '<span class="muted">aucun</span>';
     const pnl = subscriber.pnl == null ? '<span class="muted">—</span>'
-      : `<span class="cell-main ${subscriber.pnl >= 0 ? "positive" : "negative"}">${usd(subscriber.pnl)}</span><small class="since-note ${subscriber.pnl >= 0 ? "positive" : "negative"}">${subscriber.pnlPct >= 0 ? "+" : "−"}${Math.abs(subscriber.pnlPct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</small>`;
+      : `<span class="cell-main ${subscriber.pnl >= 0 ? "positive" : "negative"}">${usd(subscriber.pnl)}</span><small class="since-note ${subscriber.pnl >= 0 ? "positive" : "negative"}">${subscriber.pnlPct >= 0 ? "+" : "−"}${Math.abs(subscriber.pnlPct).toLocaleString(locale, { maximumFractionDigits: 1 })} %</small>`;
     const renew = subscriber.renewsAt ? `${esc(date(subscriber.renewsAt))}${subscriber.cancelsAtPeriodEnd ? '<small class="since-note negative">annulation programmée</small>' : ""}` : "—";
     return `<tr>
       <td><strong class="cell-main">${esc(subscriber.email)}</strong><small class="since-note">dernière connexion ${esc(dateTime(subscriber.lastLoginAt))}</small></td>
@@ -104,22 +105,22 @@ async function loadCrypto() {
 async function decide(button) {
   const id = button.dataset.id;
   const approve = button.dataset.crypto === "approve";
-  const note = approve ? null : window.prompt("Motif du refus (visible par l'abonné) :", "") ?? null;
+  const note = approve ? null : window.prompt(t("Motif du refus (visible par l'abonné) :"), "") ?? null;
   if (!approve && note === null) return;
-  if (approve && !window.confirm("Confirmer que tu as bien reçu ce paiement ? L'accès sera activé.")) return;
+  if (approve && !window.confirm(t("Confirmer que tu as bien reçu ce paiement ? L'accès sera activé."))) return;
   button.disabled = true;
   const days = Number(document.querySelector(`[data-days="${CSS.escape(id)}"]`)?.value) || 30;
   try {
     const response = await fetch(`/api/admin/crypto/${encodeURIComponent(id)}/${approve ? "approve" : "reject"}`, { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ days, note }) });
-    if (!response.ok) window.alert((await response.json().catch(() => ({}))).error ?? "Échec");
-  } catch { window.alert("Échec de la requête."); }
+    if (!response.ok) window.alert(t((await response.json().catch(() => ({}))).error ?? "Échec"));
+  } catch { window.alert(t("Échec de la requête.")); }
   await Promise.all([loadCrypto(), loadAdmin()]);
 }
 
 function render() {
   renderKpis(state.data.totals);
   renderRows();
-  $("#admin-status").textContent = `mis à jour ${new Date(state.data.generatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+  $("#admin-status").textContent = `mis à jour ${new Date(state.data.generatedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
 }
 
 export async function loadAdmin() {

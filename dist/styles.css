@@ -997,3 +997,6 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .interval-toggle button.active { background: #262b2d; color: var(--text); box-shadow: inset 0 -2px var(--acid); }
 .interval-toggle em { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: #14301f; color: #4ade80; font-size: .66rem; font-style: normal; }
 .paywall-panel .interval-toggle { display: grid; }
+.lang-switch { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: var(--muted); font: 600 .78rem Inter, ui-sans-serif, system-ui, sans-serif; cursor: pointer; } .lang-switch:hover { color: var(--text); border-color: #5b676b; }
+.paywall-page .gate-brand { position: relative; } .paywall-page .gate-brand .lang-switch { position: absolute; right: 0; }
+.land-cta { align-items: center; }

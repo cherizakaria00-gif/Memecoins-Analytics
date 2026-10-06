@@ -1,3 +1,4 @@
+import { locale, t } from "./i18n.js";
 import { createCoinChart } from "./coin-chart.js";
 import { createEquityChart } from "./equity-chart.js";
 import { addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "./dashboard.js";
@@ -16,11 +17,11 @@ let tokens = [
   { id: "moon", name: "MOON TAPE", symbol: "TAPE", initials: "MT", age: "48 min", liquidity: 45700, volume: 38800, change: -21.4, risk: "Élevé", score: 42, price: 0.000091, accent: "#ff6b62", holders: "489", lock: "24 %", top10: "58,1 %", mint: false, freeze: true }
 ];
 
-const formatMoney = (value, decimals = 0) => new Intl.NumberFormat("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: decimals }).format(value);
-const formatCompact = value => new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(value) + " $";
-const formatPrice = value => value.toLocaleString("fr-FR", { minimumFractionDigits: value < .001 ? 6 : 4, maximumFractionDigits: 6 }) + " $";
-const signed = value => `${value >= 0 ? "+" : ""}${value.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
-const formatInteger = value => Number.isFinite(value) ? value.toLocaleString("fr-FR") : "—";
+const formatMoney = (value, decimals = 0) => new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: decimals }).format(value);
+const formatCompact = value => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value) + " $";
+const formatPrice = value => value.toLocaleString(locale, { minimumFractionDigits: value < .001 ? 6 : 4, maximumFractionDigits: 6 }) + " $";
+const signed = value => `${value >= 0 ? "+" : ""}${value.toLocaleString(locale, { maximumFractionDigits: 1 })} %`;
+const formatInteger = value => Number.isFinite(value) ? value.toLocaleString(locale) : "—";
 const formatMarketMoney = value => Number.isFinite(value) && value > 0 ? formatCompact(value) : "—";
 const formatMarketChange = value => Number.isFinite(value) ? signed(value) : "—";
 const parseMetric = value => Number(String(value).replace(",", ".").replace(/[^\d.-]/g, ""));
@@ -210,7 +211,7 @@ function changePill(value, movement) {
   if (!Number.isFinite(value)) return '<span class="pill neutral">—</span>';
   const tone = value > 0 ? "up" : value < 0 ? "down" : "neutral";
   const arrow = value > 0 ? "↑" : value < 0 ? "↓" : "";
-  return `<span class="pill ${tone} ${movement ?? ""}">${arrow} ${Math.abs(value).toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%</span>`;
+  return `<span class="pill ${tone} ${movement ?? ""}">${arrow} ${Math.abs(value).toLocaleString(locale, { maximumFractionDigits: 1 })}%</span>`;
 }
 
 function renderTable() {
@@ -319,9 +320,9 @@ function renderDetail() {
   ];
   if (holderStats?.available !== false && holderStats?.reliable) {
     const insiders = holderStats.sniperPct + holderStats.bundlerPct + holderStats.devPct;
-    securityRows[3] = [holderStats.top10Pct < 40, "Concentration top 10", `${holderStats.top10Pct.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`];
+    securityRows[3] = [holderStats.top10Pct < 40, "Concentration top 10", `${holderStats.top10Pct.toLocaleString(locale, { maximumFractionDigits: 1 })} %`];
     securityRows[4] = [holderStats.totalHolders > 500, "Détenteurs", formatInteger(holderStats.totalHolders)];
-    securityRows.push([insiders < 15, "Snipers / bundlers / dev", `${insiders.toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % (${holderStats.sniperCount} snipers, ${holderStats.bundlerCount} bundlers)`]);
+    securityRows.push([insiders < 15, "Snipers / bundlers / dev", `${insiders.toLocaleString(locale, { maximumFractionDigits: 1 })} % (${holderStats.sniperCount} snipers, ${holderStats.bundlerCount} bundlers)`]);
   }
 
   const groups = [];
@@ -332,7 +333,7 @@ function renderDetail() {
     });
   }
   if (token.quality) {
-    const valueText = check => (check.value == null ? "inconnu" : check.unit === "min" ? `${Math.floor(check.value)} min` : check.unit === "sol" ? `${check.value.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} SOL` : formatMarketMoney(check.value));
+    const valueText = check => (check.value == null ? "inconnu" : check.unit === "min" ? `${Math.floor(check.value)} min` : check.unit === "sol" ? `${check.value.toLocaleString(locale, { maximumFractionDigits: 2 })} SOL` : formatMarketMoney(check.value));
     const minText = check => (check.unit === "sol" ? `${check.min} SOL` : check.unit === "min" ? `${check.min} min` : formatMarketMoney(check.min));
     groups.push({
       title: `Filtre Pulse · ${QUALITY_STAGE_LABEL[token.quality.stage]} · ${token.quality.passes ? "validé" : "sous les minimums"}`,
@@ -404,7 +405,7 @@ function activePreset(amountUsd) {
   return state.feeMode === "auto" ? presetForCapital(amountUsd / currentSolUsd()) : presetById(state.feeMode);
 }
 
-const solText = value => value.toLocaleString("fr-FR", { maximumFractionDigits: 3 });
+const solText = value => value.toLocaleString(locale, { maximumFractionDigits: 3 });
 
 function renderPresetTable() {
   const rows = FEE_PRESETS.map(preset => `<tr><th><i style="background:${preset.accent}"></i>${esc(preset.label)}</th><td>${preset.capitalMinSol} – ${preset.capitalMaxSol}${preset.capitalOpenEnded ? "+" : ""}</td><td>${preset.priorityFeeSol}</td><td>${preset.tipSol}</td><td>${preset.slippageBuyPct} %</td><td>${preset.slippageSellPct} %</td><td>${preset.passiveSol}</td><td>${preset.deepPassSol}</td></tr>`).join("");
@@ -424,7 +425,7 @@ function renderTradeQuote() {
   const tooMuch = Boolean(quote && quote.impact * 100 > preset.slippageBuyPct);
   node.classList.toggle("warn", Boolean(quote && (quote.impact > 0.03 || tooMuch)));
   node.textContent = quote
-    ? `${tooMuch ? `⛔ Slippage ${(quote.impact * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} % > ${preset.slippageBuyPct} % : achat refusé · ` : quote.impact > 0.03 ? "⚠ Liquidité faible · " : ""}Frais ${formatMoney(quote.fee, 2)} + réseau ${formatMoney(quote.network, 2)} · impact ${(quote.impact * 100).toLocaleString("fr-FR", { maximumFractionDigits: 2 })} % · ≈ ${formatInteger(Math.round(quote.units))} $${token.symbol}`
+    ? `${tooMuch ? `⛔ Slippage ${(quote.impact * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} % > ${preset.slippageBuyPct} % : achat refusé · ` : quote.impact > 0.03 ? "⚠ Liquidité faible · " : ""}Frais ${formatMoney(quote.fee, 2)} + réseau ${formatMoney(quote.network, 2)} · impact ${(quote.impact * 100).toLocaleString(locale, { maximumFractionDigits: 2 })} % · ≈ ${formatInteger(Math.round(quote.units))} $${token.symbol}`
     : "";
 }
 
@@ -482,7 +483,7 @@ function kpiDefinitions(model) {
     ["realized", "P&L réalisé", signedMoney(stats.realized), `${stats.count} trade${stats.count > 1 ? "s" : ""} clôturé${stats.count > 1 ? "s" : ""}`, tone(stats.realized)],
     ["winrate", "Taux de réussite", stats.winRate == null ? "—" : `${Math.round(stats.winRate * 100)} %`, stats.count ? `${stats.wins} gagnants · ${stats.losses} perdants` : "aucun trade", ""],
     ["exposure", "Exposition", `${Math.round(model.exposure * 100)} %`, `cash ${formatMoney(state.balance, 0)}`, ""],
-    ["drawdown", "Drawdown max", model.drawdown.pct > 0 ? `−${(model.drawdown.pct * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %` : "0 %", model.drawdown.abs > 0 ? `−${formatMoney(model.drawdown.abs, 0)} depuis un pic` : "aucune baisse", model.drawdown.pct > 0.1 ? "negative" : ""],
+    ["drawdown", "Drawdown max", model.drawdown.pct > 0 ? `−${(model.drawdown.pct * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} %` : "0 %", model.drawdown.abs > 0 ? `−${formatMoney(model.drawdown.abs, 0)} depuis un pic` : "aucune baisse", model.drawdown.pct > 0.1 ? "negative" : ""],
     ["factor", "Profit factor", stats.profitFactor == null ? "—" : stats.profitFactor === Infinity ? "∞" : stats.profitFactor.toFixed(2), stats.expectancy == null ? "gains ÷ pertes" : `espérance ${signedMoney(stats.expectancy)} / trade`, stats.profitFactor == null ? "" : stats.profitFactor >= 1 ? "positive" : "negative"]
   ];
 }
@@ -513,7 +514,7 @@ function patchKpis(model) {
 function renderAllocation(model) {
   const parts = allocation(state.balance, model.rows.map(row => ({ symbol: row.position.tokenSymbol, value: row.value, tokenId: row.position.tokenId })));
   document.querySelector("#allocation").innerHTML = `<div class="donut-wrap">${donutSvg(parts, ALLOCATION_COLORS)}<div class="donut-center"><strong>${formatMoney(model.total, 0)}</strong><span>total</span></div></div>
-    <ul class="legend">${parts.map((part, index) => `<li><i style="background:${ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]}"></i><span>${esc(part.label)}</span><b>${(part.pct * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</b></li>`).join("")}</ul>`;
+    <ul class="legend">${parts.map((part, index) => `<li><i style="background:${ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]}"></i><span>${esc(part.label)}</span><b>${(part.pct * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} %</b></li>`).join("")}</ul>`;
 }
 
 function renderBreakdowns(model) {
@@ -541,7 +542,7 @@ function positionCard({ position, token, value, pnl, pct }) {
   return `<article class="position-card" data-pid="${esc(position.id)}">
     <header><span class="mini-avatar" style="--accent:${esc(live.accent)}">${avatarContent(live)}</span>
       <div class="pc-name"><strong>${esc(live.name)}</strong><small>$${esc(live.symbol)}${token ? "" : " · prix indisponible"} · <span data-pc="hold">${formatDuration(Date.now() - position.openedAt)}</span>${preset ? ` · ${esc(preset.label)}` : ""}</small></div>
-      <span class="pc-pill ${pct >= 0 ? "up" : "down"}" data-pc="pill">${pct >= 0 ? "↑" : "↓"} ${Math.abs(pct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</span></header>
+      <span class="pc-pill ${pct >= 0 ? "up" : "down"}" data-pc="pill">${pct >= 0 ? "↑" : "↓"} ${Math.abs(pct).toLocaleString(locale, { maximumFractionDigits: 1 })} %</span></header>
     <div class="pc-main"><strong data-pc="value">${formatMoney(value, 2)}</strong><span class="${tone(pnl)}" data-pc="pnl">${signedMoney(pnl)}</span></div>
     <div class="pc-spark" data-pc="spark">${sparklineSvg({ priceHistory: [position.spotEntry, ...((token?.priceHistory ?? []).slice(-40)), token?.price ?? position.lastPrice] })}</div>
     <div class="pc-limits"><div class="limit-track ${progress.hasStop ? "" : "no-stop"}"><i style="left:${(progress.position * 100).toFixed(1)}%" data-pc="marker"></i></div>
@@ -589,7 +590,7 @@ function patchDashboard() {
     setText(pnlNode, signedMoney(row.pnl));
     pnlNode.className = tone(row.pnl);
     const pill = at("pill");
-    setText(pill, `${row.pct >= 0 ? "↑" : "↓"} ${Math.abs(row.pct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`);
+    setText(pill, `${row.pct >= 0 ? "↑" : "↓"} ${Math.abs(row.pct).toLocaleString(locale, { maximumFractionDigits: 1 })} %`);
     pill.className = `pc-pill ${row.pct >= 0 ? "up" : "down"}`;
     at("marker").style.left = `${(limitProgress(row.pct, row.position.stopLossPct, row.position.takeProfitPct).position * 100).toFixed(1)}%`;
     setText(at("price"), row.token ? formatPrice(row.token.price) : "—");
@@ -623,7 +624,7 @@ function renderHistory() {
   updateHistoryCount();
   const trades = state.history.filter(trade => historyFilter === "all" || (historyFilter === "win" ? trade.pnl > 0 : trade.pnl < 0));
   document.querySelector("#history-list").innerHTML = trades.length
-    ? trades.slice(0, 40).map(trade => `<div class="history-row"><strong>$${esc(trade.tokenSymbol)}</strong><span>${new Date(trade.closedAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</span><span>${formatMoney(trade.amount, 2)} → ${formatMoney(trade.proceeds, 2)}${REASON_LABEL[trade.reason] ?? ""}</span><strong class="${trade.pnl >= 0 ? "positive" : "negative"}">${trade.pnl >= 0 ? "+" : ""}${formatMoney(trade.pnl, 2)} (${signed(trade.pnlPct)})</strong></div>`).join("")
+    ? trades.slice(0, 40).map(trade => `<div class="history-row"><strong>$${esc(trade.tokenSymbol)}</strong><span>${new Date(trade.closedAt).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</span><span>${formatMoney(trade.amount, 2)} → ${formatMoney(trade.proceeds, 2)}${REASON_LABEL[trade.reason] ?? ""}</span><strong class="${trade.pnl >= 0 ? "positive" : "negative"}">${trade.pnl >= 0 ? "+" : ""}${formatMoney(trade.pnl, 2)} (${signed(trade.pnlPct)})</strong></div>`).join("")
     : '<div class="positions-empty">Aucun trade clôturé pour ce filtre.</div>';
 }
 
@@ -722,7 +723,7 @@ function walletLogo(wallet) {
 }
 
 function formatSol(value) {
-  return value == null ? "— SOL" : `${value.toLocaleString("fr-FR", { maximumFractionDigits: 4 })} SOL`;
+  return value == null ? "— SOL" : `${value.toLocaleString(locale, { maximumFractionDigits: 4 })} SOL`;
 }
 
 function renderWallet() {
@@ -1331,7 +1332,7 @@ async function loadTokens(refresh = false) {
     runTriggers();
     saveWallet();
     if (!tokens.some(token => token.id === state.selected)) state.selected = tokens[0].id;
-    document.querySelector("#stat-scanned").textContent = Number(payload.scanned ?? 0).toLocaleString("fr-FR");
+    document.querySelector("#stat-scanned").textContent = Number(payload.scanned ?? 0).toLocaleString(locale);
     document.querySelector("#stat-qualified").textContent = tokens.filter(token => token.signal ? token.signal.tradable : token.score >= 70).length;
     renderMarketTotals();
     detectNewQualified(Boolean(payload.live));
@@ -1547,7 +1548,7 @@ async function loadStandings() {
     const payload = await response.json();
     standingsState.data = payload;
     if (payload.board?.kind === "competition") standingsState.slug = payload.board.competition.slug;
-    status.textContent = `mis à jour ${new Date(payload.board?.updatedAt ?? Date.now()).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
+    status.textContent = `mis à jour ${new Date(payload.board?.updatedAt ?? Date.now()).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}`;
     renderStandings(payload);
   } catch {
     status.textContent = "indisponible";
@@ -1575,7 +1576,7 @@ document.querySelector("#competition-select").addEventListener("change", event =
 });
 
 /* ---- Signal reliability (server-side forward test) ---- */
-const pct = value => (value == null ? "—" : `${value >= 0 ? "+" : ""}${(value * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`);
+const pct = value => (value == null ? "—" : `${value >= 0 ? "+" : ""}${(value * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} %`);
 const HORIZON_LABELS = { m15: "15 min", h1: "1 h", h4: "4 h" };
 
 function statsRows(label, data) {
@@ -1686,7 +1687,7 @@ function securityTile(label, value, tone, { title = "", sub = "" } = {}) {
 }
 
 const riskTone = (value, danger, warning) => (value >= danger ? "bad" : value >= warning ? "warn" : "good");
-const percentText = value => `${value.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}%`;
+const percentText = value => `${value.toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
 
 function renderSecurity() {
   const grid = document.querySelector("#security-grid");
@@ -1714,7 +1715,7 @@ function renderSecurity() {
     authority("mintRevoked"),
     authority("freezeRevoked"),
     securityTile("Pro Vol. 1h", NA, "neutral", { title: NA_TITLE }),
-    feesSol == null ? securityTile("Total fees", NA, "neutral", { title: NA_TITLE }) : securityTile("Total fees", `≈ ${feesSol.toLocaleString("fr-FR", { maximumFractionDigits: 2 })} SOL`, feesSol >= 0.5 ? "good" : "warn", { title: "Estimation : environ 1 % du volume 24 h converti en SOL" })
+    feesSol == null ? securityTile("Total fees", NA, "neutral", { title: NA_TITLE }) : securityTile("Total fees", `≈ ${feesSol.toLocaleString(locale, { maximumFractionDigits: 2 })} SOL`, feesSol >= 0.5 ? "good" : "warn", { title: "Estimation : environ 1 % du volume 24 h converti en SOL" })
   ].join("");
   document.querySelector("#security-note").textContent = reliable ? `${formatInteger(holders.totalHolders)} détenteurs` : "";
 }
@@ -1796,7 +1797,7 @@ function notify({ type, title, body, tokenId = null }) {
   playChime(type);
   if ("Notification" in window && Notification.permission === "granted") {
     try {
-      const popup = new Notification(title, { body, tag: `${type}-${tokenId ?? ""}` });
+      const popup = new Notification(t(title), { body: t(body), tag: `${type}-${tokenId ?? ""}` });
       popup.onclick = () => { window.focus(); if (tokenId && tokens.some(token => token.id === tokenId)) openCoin(tokenId); popup.close(); };
     } catch { /* some browsers only allow notifications from a service worker */ }
   }
@@ -2038,8 +2039,8 @@ function scheduleLiveTick(delay = LIVE_TICK_MS) {
 }
 
 /* ---- Trade plan: entry zone, stop and targets from price action ---- */
-const planMoney = value => (value >= 1 ? value.toLocaleString("fr-FR", { maximumFractionDigits: 4 }) : value.toPrecision(3)) + " $";
-const pctText = value => `${value >= 0 ? "+" : "−"}${Math.abs(value * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`;
+const planMoney = value => (value >= 1 ? value.toLocaleString(locale, { maximumFractionDigits: 4 }) : value.toPrecision(3)) + " $";
+const pctText = value => `${value >= 0 ? "+" : "−"}${Math.abs(value * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} %`;
 state.plan = null;
 
 function currentPlan() {
@@ -2390,7 +2391,7 @@ function renderNewCoins() {
   document.querySelector("#newcoins-empty").hidden = rows.length > 0 || !newCoins.loaded;
   document.querySelector("#new-hidden").textContent = newChips.full ? `(${newCoins.tokens.filter(token => !token.quality.passes).length} échouent)` : "";
   document.querySelector("#new-count").textContent = rows.length;
-  document.querySelector("#newcoins-status").textContent = `${rows.length} sur ${newCoins.tokens.length} passent${newCoins.updatedAt ? ` · mis à jour ${new Date(newCoins.updatedAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}`;
+  document.querySelector("#newcoins-status").textContent = `${rows.length} sur ${newCoins.tokens.length} passent${newCoins.updatedAt ? ` · mis à jour ${new Date(newCoins.updatedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : ""}`;
 }
 
 function notifyNewCoins(tokens) {
@@ -2475,11 +2476,11 @@ function historyRow(trade) {
     : status.quality.passes ? '<span class="new-badge ok">✓ passe encore</span>'
       : `<span class="new-badge fail" title="${esc(status.quality.failed.join(" · "))}">✗ ${esc(status.quality.failed[0]?.replace(/ minimum.*/, "") ?? "ne passe plus")}</span>`;
   const sinceCell = change == null ? '<span class="pill neutral">—</span>'
-    : `<span class="pill ${change >= 0 ? "up" : "down"}">${change >= 0 ? "↑" : "↓"} ${Math.abs(change * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</span><small class="since-note">${change >= 0 ? "a continué de monter" : "a baissé depuis"}</small>`;
+    : `<span class="pill ${change >= 0 ? "up" : "down"}">${change >= 0 ? "↑" : "↓"} ${Math.abs(change * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} %</span><small class="since-note">${change >= 0 ? "a continué de monter" : "a baissé depuis"}</small>`;
   const held = Number.isFinite(trade.openedAt) ? formatDuration(trade.closedAt - trade.openedAt) : "—";
   return `<tr class="token-row history-row-tr" data-history-token="${esc(trade.tokenId)}" tabindex="0">
     <td><div class="token-cell"><span class="mini-avatar" style="--accent:#8b9699">${avatar}</span><div><strong>${esc(trade.tokenName ?? trade.tokenSymbol)}</strong><span>$${esc(trade.tokenSymbol)}${trade.fraction < 0.999 ? ` · vente ${Math.round(trade.fraction * 100)} %` : ""}</span></div></div></td>
-    <td><span class="cell-main">${new Date(trade.closedAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</span><small class="since-note">${esc(REASON_TEXT[trade.reason] ?? "Manuel")} · détenu ${held}</small></td>
+    <td><span class="cell-main">${new Date(trade.closedAt).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</span><small class="since-note">${esc(REASON_TEXT[trade.reason] ?? "Manuel")} · détenu ${held}</small></td>
     <td>${formatPrice(trade.entryPrice)}</td>
     <td>${formatPrice(trade.exitPrice)}</td>
     <td><span class="cell-main ${trade.pnl >= 0 ? "positive" : "negative"}">${signedMoney(trade.pnl)}</span><small class="since-note ${trade.pnl >= 0 ? "positive" : "negative"}">${signed(trade.pnlPct)}</small></td>
@@ -2501,7 +2502,7 @@ function renderHistoryPage() {
   document.querySelector("#history-summary").innerHTML = [
     ["Trades clôturés", formatInteger(stats.count), "", `${stats.wins} gagnants · ${stats.losses} perdants`],
     ["P&L réalisé", signedMoney(stats.realized), tone(stats.realized), stats.winRate == null ? "" : `réussite ${Math.round(stats.winRate * 100)} %`],
-    ["Depuis tes sorties (moyenne)", average == null ? "—" : `${average >= 0 ? "+" : "−"}${Math.abs(average * 100).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %`, tone(average ?? 0), average == null ? "prix en chargement" : average >= 0 ? "les coins ont continué de monter" : "les coins ont baissé après ta vente"],
+    ["Depuis tes sorties (moyenne)", average == null ? "—" : `${average >= 0 ? "+" : "−"}${Math.abs(average * 100).toLocaleString(locale, { maximumFractionDigits: 1 })} %`, tone(average ?? 0), average == null ? "prix en chargement" : average >= 0 ? "les coins ont continué de monter" : "les coins ont baissé après ta vente"],
     ["Passent encore le filtre", `${valid} / ${state.history.length}`, "", "Filtre Pulse actuel"]
   ].map(([label, value, valueTone, sub]) => `<article class="kpi"><span>${label}</span><strong class="${valueTone}">${value}</strong><small>${sub}</small></article>`).join("");
   document.querySelector("#history-status").textContent = historyPage.loaded ? "prix actualisés" : "chargement des prix…";
@@ -2571,7 +2572,7 @@ state.live = {
   cap: Number(localStorage.getItem("pulse-live-cap")) > 0 ? Number(localStorage.getItem("pulse-live-cap")) : 1
 };
 const liveActive = () => state.mode === "live";
-const solText2 = (value, digits = 3) => `${value.toLocaleString("fr-FR", { maximumFractionDigits: digits })} SOL`;
+const solText2 = (value, digits = 3) => `${value.toLocaleString(locale, { maximumFractionDigits: digits })} SOL`;
 
 function applyMode() {
   document.body.classList.toggle("mode-live", liveActive());
@@ -2710,7 +2711,7 @@ document.querySelectorAll("[data-close-live-confirm]").forEach(button => button.
 
 function openConfirm(prepared, body, meta) {
   const details = describeOrder(prepared.summary, { decimals: meta.decimals, symbol: meta.symbol, solUsd: currentSolUsd() });
-  const fmt = value => value.toLocaleString("fr-FR", { maximumFractionDigits: value >= 100 ? 0 : 4 });
+  const fmt = value => value.toLocaleString(locale, { maximumFractionDigits: value >= 100 ? 0 : 4 });
   const buy = body.side === "buy";
   const wallet = activeWallet();
   document.querySelector("#live-confirm-title").textContent = details.title;
@@ -2883,9 +2884,9 @@ function renderLive() {
     return `<article class="position-card live-card ${holding.breach ? "due" : ""}" data-live-mint="${esc(holding.mint)}">
       <header><span class="mini-avatar" style="--accent:#8b9699">${avatarContent({ imageUrl: status?.imageUrl ?? null, initials: (status?.symbol ?? meta.symbol).slice(0, 2).toUpperCase() })}</span>
         <div class="pc-name"><strong>${esc(status?.name ?? meta.name)}</strong><small>$${esc(status?.symbol ?? meta.symbol)} · ${esc(shortAddress(holding.mint))}</small></div>
-        ${pct == null ? '<span class="pc-pill neutral">coût inconnu</span>' : `<span class="pc-pill ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "↑" : "↓"} ${Math.abs(pct).toLocaleString("fr-FR", { maximumFractionDigits: 1 })} %</span>`}</header>
+        ${pct == null ? '<span class="pc-pill neutral">coût inconnu</span>' : `<span class="pc-pill ${pct >= 0 ? "up" : "down"}">${pct >= 0 ? "↑" : "↓"} ${Math.abs(pct).toLocaleString(locale, { maximumFractionDigits: 1 })} %</span>`}</header>
       <div class="pc-main"><strong>${holding.value.valueUsd == null ? "prix inconnu" : formatMoney(holding.value.valueUsd, 2)}</strong><span>${holding.value.valueSol == null ? "" : solText2(holding.value.valueSol)}</span></div>
-      <dl class="pc-grid"><div><dt>Quantité</dt><dd>${holding.value.amount.toLocaleString("fr-FR", { maximumFractionDigits: 2 })}</dd></div><div><dt>Prix</dt><dd>${status?.price > 0 ? formatPrice(status.price) : "—"}</dd></div><div><dt>Coût (ordres Pulse)</dt><dd>${holding.cost?.costSol > 0 ? solText2(holding.cost.costSol) : "—"}</dd></div></dl>
+      <dl class="pc-grid"><div><dt>Quantité</dt><dd>${holding.value.amount.toLocaleString(locale, { maximumFractionDigits: 2 })}</dd></div><div><dt>Prix</dt><dd>${status?.price > 0 ? formatPrice(status.price) : "—"}</dd></div><div><dt>Coût (ordres Pulse)</dt><dd>${holding.cost?.costSol > 0 ? solText2(holding.cost.costSol) : "—"}</dd></div></dl>
       ${holding.breach ? `<p class="due-note">${holding.breach === "stop-loss" ? "Stop-loss atteint" : "Take-profit atteint"} : vends si tu le souhaites.</p>` : ""}
       <footer class="position-actions">
         <label class="limit-edit" title="Alerte de stop-loss (perte en %)">SL −<input type="number" min="1" max="99" step="1" placeholder="aucun" value="${holding.limits?.sl ?? ""}" data-live-limit="sl" data-live-mint="${esc(holding.mint)}" />%</label>
@@ -2900,7 +2901,7 @@ function renderLive() {
   const STATE_LABEL = { pending: ["en attente", "warn"], confirmed: ["confirmé", "ok"], finalized: ["confirmé", "ok"], failed: ["échoué", "bad"], expired: ["sans réponse", "neutral"] };
   ordersNode.innerHTML = mine.length ? mine.map(order => {
     const [label, orderTone] = STATE_LABEL[order.state] ?? STATE_LABEL.pending;
-    return `<div class="history-row live-order"><strong>$${esc(order.symbol)}</strong><span>${new Date(order.ts).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</span><span><b class="${order.side === "buy" ? "positive" : "negative"}">${order.side === "buy" ? "ACHAT" : "VENTE"}</b> · ${solText2(lamportsToSol(order.solLamports))}</span><span><span class="plan-pill ${orderTone}">${label}</span> <a class="wallet-link" href="${SOLSCAN_TX}${esc(order.id)}" target="_blank" rel="noopener noreferrer">Solscan ↗</a></span></div>`;
+    return `<div class="history-row live-order"><strong>$${esc(order.symbol)}</strong><span>${new Date(order.ts).toLocaleString(locale, { dateStyle: "short", timeStyle: "short" })}</span><span><b class="${order.side === "buy" ? "positive" : "negative"}">${order.side === "buy" ? "ACHAT" : "VENTE"}</b> · ${solText2(lamportsToSol(order.solLamports))}</span><span><span class="plan-pill ${orderTone}">${label}</span> <a class="wallet-link" href="${SOLSCAN_TX}${esc(order.id)}" target="_blank" rel="noopener noreferrer">Solscan ↗</a></span></div>`;
   }).join("") : '<div class="positions-empty">Aucun ordre pour le moment.</div>';
 }
 
