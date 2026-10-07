@@ -1072,17 +1072,7 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .bot-pending { margin-top: 10px; display: grid; gap: 4px; font-size: .76rem; color: #b6c8bd; } .bot-pending:empty { display: none; } .bot-pending strong { color: var(--text); font-size: .74rem; } .bot-pending div { display: flex; justify-content: space-between; gap: 10px; } .bot-pending small { color: var(--muted); }
 .manual-orders { margin-bottom: 14px; } .manual-orders:empty { display: none; } .limit-order { display: flex; align-items: center; gap: 12px; padding: 10px 14px; margin-top: 6px; border: 1px dashed #2f6b45; border-radius: 10px; background: #0c1710; font-size: .82rem; } .limit-order small { margin-left: auto; color: var(--muted); }
 
-/* ---- Telegram calls ---- */
-.calls-view { padding: 20px 0 40px; } .calls-add { display: flex; gap: 10px; margin: 6px 0 12px; } .calls-add input { flex: 1; height: 42px; padding: 0 14px; border: 1px solid var(--line); border-radius: 10px; background: #0c0e0f; color: var(--text); font: inherit; font-size: .86rem; }
-.calls-channels { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; } .call-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 6px 5px 12px; border: 1px solid #2a3235; border-radius: 999px; background: #12171a; font-size: .8rem; } .call-chip button { width: 20px; height: 20px; border: 0; border-radius: 50%; background: #262b2d; color: var(--muted); cursor: pointer; line-height: 1; }
-.calls-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin-top: 14px; }
-.call-card { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); display: grid; gap: 10px; } .call-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; } .call-head span { color: var(--muted); font-size: .84rem; } .call-head small { margin-left: auto; color: var(--muted); font-size: .72rem; }
-.call-text { margin: 0; padding: 8px 10px; border-left: 3px solid #2f6b45; background: #0c1410; color: #b6c8bd; font-size: .78rem; line-height: 1.5; word-break: break-word; white-space: pre-line; }
-.call-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .76rem; color: var(--muted); } .call-stats b { color: var(--text); } .call-actions { display: flex; gap: 14px; }
-@media (max-width: 700px) { .calls-add { flex-direction: column; } .calls-list { grid-template-columns: 1fr; } }
-.calls-private { margin: 18px 0; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); } .calls-private h2 { margin: 0 0 8px; font-size: 1.05rem; }
-.calls-steps { margin: 10px 0 14px; padding-left: 20px; display: grid; gap: 6px; color: #b6c8bd; font-size: .82rem; line-height: 1.5; } .calls-steps code { padding: 1px 6px; border-radius: 5px; background: #0c0e0f; color: #86efac; font-size: .78rem; }
-.tg-bot-status { margin-top: 10px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; } .tg-bot-status:empty { display: none; }
+
 .bot-check { grid-column: 1 / -1; display: flex !important; flex-direction: row !important; align-items: center; gap: 10px !important; color: var(--text) !important; font-size: .8rem !important; } .bot-check input { width: auto !important; height: auto !important; accent-color: #22c55e; }
 
 /* ---- Position turns positive: animated notification ---- */
@@ -1098,3 +1088,8 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .position-card.flash-up { animation: cardFlash 1.6s ease-out; } @keyframes cardFlash { 0% { box-shadow: 0 0 0 2px #4ade80, 0 0 40px rgba(74, 222, 128, .55); background: #12301d; } 100% { box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { .profit-icon, .profit-burst i, .position-card.flash-up { animation: none; } .profit-toast { animation-duration: .01s; } }
 @media (max-width: 600px) { .profit-toast { top: 70px; width: calc(100vw - 32px); } }
+
+/* ---- Telegram alerts (link from the bell menu) ---- */
+.tg-link { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--line); }
+.tg-link-body { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); } .tg-link-body:empty { display: none; }
+.tg-link-body code { padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.04); color: var(--green); user-select: all; }

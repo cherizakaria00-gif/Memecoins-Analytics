@@ -4,7 +4,7 @@
  * a cap on open bot positions, a cooldown per token and a daily loss limit that pauses the bot.
  */
 export const BOT_SOURCES = ["both", "qualified", "early"];
-export const DEFAULT_BOT = { enabled: false, source: "both", minScore: 70, sizePct: 5, maxAmount: 500, stopLossPct: 25, takeProfitPct: 50, maxOpen: 3, dailyLossPct: 5, cooldownHours: 24, entryDipPct: 3, orderTimeoutMin: 30, useCalls: false };
+export const DEFAULT_BOT = { enabled: false, source: "both", minScore: 70, sizePct: 5, maxAmount: 500, stopLossPct: 25, takeProfitPct: 50, maxOpen: 3, dailyLossPct: 5, cooldownHours: 24, entryDipPct: 3, orderTimeoutMin: 30 };
 
 const clamp = (value, min, max, fallback) => { const number = Number(value); return Number.isFinite(number) ? Math.min(Math.max(number, min), max) : fallback; };
 
@@ -23,8 +23,7 @@ export function normalizeBot(raw) {
     dailyLossPct: clamp(raw?.dailyLossPct, 0.5, 100, base.dailyLossPct),
     cooldownHours: clamp(raw?.cooldownHours, 0, 168, base.cooldownHours),
     entryDipPct: clamp(raw?.entryDipPct, 0, 30, base.entryDipPct),
-    orderTimeoutMin: Math.round(clamp(raw?.orderTimeoutMin, 1, 720, base.orderTimeoutMin)),
-    useCalls: raw?.useCalls === true
+    orderTimeoutMin: Math.round(clamp(raw?.orderTimeoutMin, 1, 720, base.orderTimeoutMin))
   };
 }
 
@@ -92,12 +91,10 @@ export function pickEntries({ tokens, positions, history, balance, startBalance,
     if (now - (lastEntries[token.id] ?? 0) < cooldown) continue;
     const qualified = config.source !== "early" && isQualified(token);
     const early = config.source !== "qualified" && Boolean(token.early?.early);
-    // A token announced in a followed Telegram channel is only considered when it also passes the full Pulse filter.
-    const call = config.useCalls && Boolean(token.fromCall) && isQualified(token);
-    if (!qualified && !early && !call) continue;
-    const score = Math.max(qualified || call ? Number(token.score) || 0 : 0, early ? Number(token.early.score) || 0 : 0);
+    if (!qualified && !early) continue;
+    const score = Math.max(qualified ? Number(token.score) || 0 : 0, early ? Number(token.early.score) || 0 : 0);
     if (score < config.minScore) continue;
-    candidates.push({ token, score, source: call && !qualified && !early ? "call" : early && !qualified ? "early" : "qualified" });
+    candidates.push({ token, score, source: early && !qualified ? "early" : "qualified" });
   }
   candidates.sort((first, second) => second.score - first.score);
   for (const { token, score, source } of candidates) {

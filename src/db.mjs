@@ -67,13 +67,10 @@ const SCHEMA = `
     created_at INTEGER NOT NULL, settled_at INTEGER
   );
   CREATE INDEX IF NOT EXISTS fees_status ON platform_fees(status, settled_at);
-  CREATE TABLE IF NOT EXISTS telegram_bots (
-    user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, token_enc TEXT NOT NULL, bot_username TEXT, update_offset INTEGER NOT NULL DEFAULT 0, created_at INTEGER NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS telegram_messages (
-    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, chat_id TEXT NOT NULL, message_id INTEGER NOT NULL, chat_title TEXT NOT NULL, at INTEGER NOT NULL, text TEXT NOT NULL,
-    PRIMARY KEY (user_id, chat_id, message_id)
-  );
+  DROP TABLE IF EXISTS telegram_messages;
+  DROP TABLE IF EXISTS telegram_bots;
+  DROP TABLE IF EXISTS platform_settings;
+  CREATE TABLE IF NOT EXISTS telegram_links (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, chat_id TEXT NOT NULL, created_at INTEGER NOT NULL);
   CREATE INDEX IF NOT EXISTS crypto_user ON crypto_requests(user_id);
   CREATE INDEX IF NOT EXISTS crypto_status ON crypto_requests(status);
   CREATE TABLE IF NOT EXISTS processed_events (
@@ -123,14 +120,9 @@ export function openStore(file = "data/pulse.db") {
     settleFee: db.prepare("UPDATE platform_fees SET status = ?, signature = ?, settled_at = ? WHERE id = ? AND user_id = ? AND status = 'prepared'"),
     feeTotals: db.prepare("SELECT COUNT(*) AS count, COALESCE(SUM(fee_lamports), 0) AS lamports FROM platform_fees WHERE status = 'confirmed' AND settled_at >= ?"),
     recentFees: db.prepare("SELECT platform_fees.*, users.email FROM platform_fees JOIN users ON users.id = platform_fees.user_id WHERE status = 'confirmed' ORDER BY settled_at DESC LIMIT ?"),
-    tgBot: db.prepare("SELECT * FROM telegram_bots WHERE user_id = ?"),
-    tgSaveBot: db.prepare("INSERT INTO telegram_bots (user_id, token_enc, bot_username, update_offset, created_at) VALUES (?, ?, ?, 0, ?) ON CONFLICT(user_id) DO UPDATE SET token_enc = excluded.token_enc, bot_username = excluded.bot_username, update_offset = 0"),
-    tgDeleteBot: db.prepare("DELETE FROM telegram_bots WHERE user_id = ?"),
-    tgDeleteMessages: db.prepare("DELETE FROM telegram_messages WHERE user_id = ?"),
-    tgSetOffset: db.prepare("UPDATE telegram_bots SET update_offset = ? WHERE user_id = ?"),
-    tgAddMessage: db.prepare("INSERT OR IGNORE INTO telegram_messages (user_id, chat_id, message_id, chat_title, at, text) VALUES (?, ?, ?, ?, ?, ?)"),
-    tgMessages: db.prepare("SELECT chat_id, message_id, chat_title, at, text FROM telegram_messages WHERE user_id = ? AND at >= ? ORDER BY at DESC LIMIT 200"),
-    tgPrune: db.prepare("DELETE FROM telegram_messages WHERE at < ?"),
+    tgLink: db.prepare("SELECT * FROM telegram_links WHERE user_id = ?"),
+    tgSaveLink: db.prepare("INSERT INTO telegram_links (user_id, chat_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET chat_id = excluded.chat_id"),
+    tgDeleteLink: db.prepare("DELETE FROM telegram_links WHERE user_id = ?"),
     upsertState: db.prepare("INSERT INTO user_state (user_id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at"),
     insertEvent: db.prepare("INSERT OR IGNORE INTO processed_events (id, processed_at) VALUES (?, ?)"),
     insertPayment: db.prepare("INSERT OR IGNORE INTO payments (id, customer_id, amount_cents, currency, paid_at) VALUES (?, ?, ?, ?, ?)"),
@@ -155,6 +147,9 @@ export function openStore(file = "data/pulse.db") {
     deleteExpiredSessions: now => { statements.deleteExpiredSessions.run(now); },
     subscription: userId => statements.subscription.get(userId) ?? null,
     userIdByCustomer: customerId => statements.userIdByCustomer.get(customerId)?.user_id ?? null,
+    telegramLink: userId => statements.tgLink.get(userId) ?? null,
+    saveTelegramLink: ({ userId, chatId, now }) => { statements.tgSaveLink.run(userId, chatId, now); },
+    deleteTelegramLink: userId => { statements.tgDeleteLink.run(userId); },
     saveSubscription: ({ userId, customerId = null, subscriptionId = null, status, currentPeriodEnd = null, cancelAtPeriodEnd = false, now, provider = null }) => {
       statements.upsertSubscription.run(userId, customerId, subscriptionId, status, currentPeriodEnd, cancelAtPeriodEnd ? 1 : 0, now, provider);
     },
@@ -173,14 +168,7 @@ export function openStore(file = "data/pulse.db") {
     settleFee: ({ id, userId, status, signature = null, now }) => statements.settleFee.run(status, signature, now, id, userId).changes > 0,
     feeTotals: (since = 0) => ({ ...statements.feeTotals.get(since) }),
     recentFees: (limit = 30) => statements.recentFees.all(limit),
-    telegramBot: userId => statements.tgBot.get(userId) ?? null,
-    saveTelegramBot: ({ userId, tokenEnc, username, now }) => statements.tgSaveBot.run(userId, tokenEnc, username ?? null, now),
     /** Disconnecting also erases every stored message of that user. */
-    deleteTelegramBot: userId => { statements.tgDeleteBot.run(userId); statements.tgDeleteMessages.run(userId); },
-    setTelegramOffset: (userId, offset) => statements.tgSetOffset.run(offset, userId),
-    addTelegramMessage: ({ userId, chatId, messageId, title, at, text }) => statements.tgAddMessage.run(userId, String(chatId), messageId, title, at, text).changes > 0,
-    telegramMessages: (userId, since) => statements.tgMessages.all(userId, since),
-    pruneTelegramMessages: before => statements.tgPrune.run(before).changes,
     state: userId => statements.state.get(userId) ?? null,
     saveState: (userId, data, now) => { statements.upsertState.run(userId, data, now); },
     /** True the first time an event id is seen, false for replays. */

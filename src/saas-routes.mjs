@@ -67,6 +67,7 @@ export function createSaas({ auth, billing, store, crypto = null, platformFee = 
   }
 
   return {
+    isAdmin,
     /** Loads request.user from the session cookie. */
     identify(request) {
       request.user = auth.authenticate(request.headers.cookie);

@@ -3,14 +3,13 @@ import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { extname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { callsFromMessages, getTelegramCalls, isValidChannel, normalizeChannel } from "./telegram-calls.mjs";
-import { connectBot, encryptToken, privateMessages, pullMessages } from "./telegram-bot.mjs";
 import { isSameOrigin } from "./saas-routes.mjs";
 import { getHeldTokens, getLiveQuotes, getTokenFeed, getTokenStatuses, searchTokens } from "./token-service.mjs";
 import { getSolBalance, isValidSolanaAddress } from "./wallet-balance.mjs";
 import { createPhantomQrSvg } from "./wallet-qr.mjs";
 import { getCandles, isValidTimeframe } from "./chart-client.mjs";
 import { getXSignal } from "./x-client.mjs";
+import { createTelegramNotifier } from "./telegram-notify.mjs";
 import { createTracker } from "./signal-tracker.mjs";
 import { fetchHolderStats } from "./pumpfun-client.mjs";
 import { getFollowedTrades, resolveTrader } from "./trader-activity.mjs";
@@ -30,8 +29,8 @@ const PORT = Number(process.env.PORT ?? 4173);
 const HOST = process.env.HOST ?? "127.0.0.1";
 const APP_URL = (process.env.APP_URL ?? `http://${HOST}:${PORT}`).replace(/\/+$/, "");
 const store = openStore(process.env.DATABASE_FILE ?? fileURLToPath(new URL("../data/pulse.db", import.meta.url)));
+const telegram = createTelegramNotifier({ store, token: process.env.TELEGRAM_BOT_TOKEN });
 const telegramRequests = new Map();
-const APP_SECRET = process.env.APP_SECRET && process.env.APP_SECRET.length >= 16 ? process.env.APP_SECRET : null;
 const liveTradingConfig = liveConfig();
 let feeProblem = null;
 if (liveTradingConfig.platformFeeAccount) {
@@ -191,37 +190,27 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
-    if (url.pathname.startsWith("/api/telegram/") && url.pathname !== "/api/telegram/calls") {
+    if (url.pathname.startsWith("/api/telegram/")) {
       const denied = saas.gate(request);
       if (denied) { sendJson(response, denied.status, denied.body); return; }
       if (request.method !== "GET" && !isSameOrigin(request)) { sendJson(response, 403, { error: "Origine non autorisée." }); return; }
-      if (!APP_SECRET) { sendJson(response, 503, { error: "Groupes privés indisponibles : APP_SECRET n'est pas configuré sur ce serveur." }); return; }
-      if (isRateLimited(telegramRequests, clientOf(request), 30)) { sendJson(response, 429, { error: "Trop de requêtes." }); return; }
+      if (isRateLimited(telegramRequests, clientOf(request), 40)) { sendJson(response, 429, { error: "Trop de requêtes." }); return; }
       try {
-        if (url.pathname === "/api/telegram/bot" && request.method === "POST") {
+        if (url.pathname === "/api/telegram/status" && request.method === "GET") { sendJson(response, 200, await telegram.status(request.user.id)); return; }
+        if (url.pathname === "/api/telegram/link" && request.method === "POST") { sendJson(response, 200, await telegram.startLink(request.user.id)); return; }
+        if (url.pathname === "/api/telegram/link" && request.method === "DELETE") { telegram.unlink(request.user.id); sendJson(response, 200, { linked: false }); return; }
+        if (url.pathname === "/api/telegram/notify" && request.method === "POST") {
           let body;
           try { body = JSON.parse(await readBody(request, 2_000)); } catch { throw Object.assign(new Error("Requête invalide."), { status: 400 }); }
-          const token = String(body?.token ?? "").trim();
-          const { username } = await connectBot(token);
-          store.saveTelegramBot({ userId: request.user.id, tokenEnc: encryptToken(token, APP_SECRET), username, now: Date.now() });
-          sendJson(response, 200, { connected: true, username });
-          return;
-        }
-        if (url.pathname === "/api/telegram/bot" && request.method === "DELETE") {
-          store.deleteTelegramBot(request.user.id);
-          sendJson(response, 200, { connected: false });
-          return;
-        }
-        if (url.pathname === "/api/telegram/private" && request.method === "GET") {
-          const status = await pullMessages({ store, userId: request.user.id, secret: APP_SECRET });
-          if (!status.connected) { sendJson(response, 200, { connected: false, calls: [] }); return; }
-          sendJson(response, 200, { connected: true, username: status.username, calls: await callsFromMessages(privateMessages(store, request.user.id)), at: Date.now() });
+          const text = typeof body?.text === "string" ? body.text.trim() : "";
+          if (!text) throw Object.assign(new Error("Message vide."), { status: 400 });
+          sendJson(response, 200, { sent: await telegram.send(request.user.id, text) });
           return;
         }
         sendJson(response, 404, { error: "Introuvable." });
       } catch (error) {
-        if (error.status && error.status < 500) sendJson(response, error.status, { error: error.message });
-        else { console.warn("Telegram bot route failed:", error.message?.replace(/bot\d+:[\w-]+/g, "bot***")); sendJson(response, 502, { error: "Telegram indisponible pour le moment." }); }
+        if (error.status === 503 || (error.status && error.status < 500)) sendJson(response, error.status, { error: error.message });
+        else { console.warn("Telegram route failed:", String(error.message).replace(/bot\d+:[\w-]+/g, "bot***")); sendJson(response, 502, { error: "Telegram indisponible pour le moment." }); }
       }
       return;
     }
@@ -277,14 +266,6 @@ const server = createServer(async (request, response) => {
         console.warn("Search unavailable:", error.message);
         sendJson(response, 502, { error: "Search unavailable" });
       }
-      return;
-    }
-    if (url.pathname === "/api/telegram/calls") {
-      const channels = (url.searchParams.get("channels") ?? "").split(",").map(normalizeChannel).filter(isValidChannel).slice(0, 8);
-      if (!channels.length) { sendJson(response, 400, { error: "Aucun canal valide." }); return; }
-      if (isRateLimited(telegramRequests, clientOf(request), 15)) { sendJson(response, 429, { error: "Trop de requêtes." }); return; }
-      try { sendJson(response, 200, await getTelegramCalls(channels)); }
-      catch (error) { console.warn("Telegram calls unavailable:", error.message); sendJson(response, 502, { error: "Annonces Telegram indisponibles." }); }
       return;
     }
     if (url.pathname === "/api/token-status") {

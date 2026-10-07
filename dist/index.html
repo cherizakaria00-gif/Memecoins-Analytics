@@ -257,7 +257,6 @@
           <button class="nav-item" type="button" data-view-tab="scanner">Scanner</button>
           <button class="nav-item" type="button" data-view-tab="newcoins">Nouveaux <span id="new-count">0</span></button>
           <button class="nav-item" type="button" data-view-tab="signals">Signaux qualifiés <span id="signals-count">0</span><span class="early-count" id="early-count" hidden>⚡0</span></button>
-          <button class="nav-item" type="button" data-view-tab="calls">Calls Telegram <span id="calls-count">0</span></button>
           <button class="nav-item" type="button" data-view-tab="standings">Standings</button>
           <button class="nav-item admin-tab" type="button" data-view-tab="admin" id="admin-tab" hidden>Admin <span class="nav-badge" id="admin-badge" hidden></span></button>
         </nav>
@@ -293,6 +292,10 @@
                 <label><input type="checkbox" id="notif-profit" checked /> Position qui passe en positif</label>
                 <label><input type="checkbox" id="notif-new" /> Nouveaux coins qui passent le filtre</label>
                 <label><input type="checkbox" id="notif-traders" checked /> Trades des traders suivis</label>
+                <div class="tg-link" id="tg-link" hidden>
+                  <label><input type="checkbox" id="tg-enabled" /> Envoyer mes alertes sur Telegram</label>
+                  <div class="tg-link-body" id="tg-link-body"></div>
+                </div>
                 <label class="notif-min">Montant minimum
                   <select id="notif-min-trade"><option value="0">Tous</option><option value="100">≥ 100 $</option><option value="500">≥ 500 $</option><option value="1000">≥ 1 000 $</option><option value="5000">≥ 5 000 $</option><option value="25000">≥ 25 000 $</option></select>
                 </label>
@@ -418,29 +421,6 @@
           <div class="signal-cards" id="signal-cards"></div>
           <h2 class="watch-title">À surveiller <small>note C, presque qualifiés</small></h2>
           <div class="signal-cards" id="watch-cards"></div>
-        </section>
-
-        <section class="calls-view" id="calls-view" data-view="calls" hidden aria-labelledby="calls-title">
-          <div class="signals-head">
-            <div><p class="eyebrow">ANNONCES DE TRADERS <span id="calls-status"></span></p><h1 id="calls-title">Calls Telegram</h1></div>
-            <p class="signals-help">Ajoute des canaux Telegram publics qui annoncent des trades : Pulse lit leurs messages, repère le token annoncé et affiche ses chiffres actuels. Beaucoup de calls sont des opérations de pump &amp; dump : vérifie toujours le coin (signal, liquidité, détenteurs) avant d'acheter, et ne suis jamais un call à l'aveugle.</p>
-          </div>
-          <form class="calls-add" id="calls-form"><input id="calls-input" type="text" placeholder="Nom du canal public ou lien t.me (ex. t.me/nom_du_canal)" autocomplete="off" aria-label="Canal Telegram" /><button class="text-button" type="submit">Ajouter le canal</button></form>
-          <div class="calls-channels" id="calls-channels"></div>
-          <p class="auth-error" id="calls-error" role="alert" hidden></p>
-          <section class="calls-private" id="calls-private" aria-labelledby="calls-private-title">
-            <h2 id="calls-private-title">Groupes et canaux privés</h2>
-            <p class="signals-help">Pour lire un groupe ou un canal privé dont tu fais partie, crée <b>ton propre bot Telegram</b> : il ne donne accès qu'aux groupes où tu l'ajoutes, jamais à ton compte Telegram.</p>
-            <ol class="calls-steps">
-              <li>Dans Telegram, ouvre <b>@BotFather</b>, envoie <code>/newbot</code> et copie le <b>token</b> qu'il te donne.</li>
-              <li>Toujours dans @BotFather : <code>/setprivacy</code> → choisis ton bot → <b>Disable</b>, pour que le bot puisse lire les messages du groupe.</li>
-              <li>Ajoute ton bot dans le groupe (ou comme administrateur du canal).</li>
-              <li>Colle le token ci-dessous. Tu peux le révoquer à tout moment avec <code>/revoke</code> dans @BotFather.</li>
-            </ol>
-            <form class="calls-add" id="tg-bot-form"><input id="tg-bot-token" type="password" placeholder="123456789:AA…" autocomplete="off" spellcheck="false" aria-label="Token du bot Telegram" /><button class="text-button" type="submit">Connecter mon bot</button></form>
-            <div class="tg-bot-status" id="tg-bot-status"></div>
-          </section>
-          <div class="calls-list" id="calls-list"></div>
         </section>
 
         <section class="standings" id="standings" data-view="standings" hidden aria-labelledby="standings-title">
@@ -575,7 +555,6 @@
               <label>Take-profit (%)<input id="bot-takeProfitPct" type="number" min="1" max="1000" step="1" /></label>
               <label>Entrée sur repli (%)<input id="bot-entryDipPct" type="number" min="0" max="30" step="0.5" title="0 = achat immédiat. Sinon le bot place un ordre limite à ce pourcentage sous le prix du signal." /></label>
               <label>Validité de l'ordre (min)<input id="bot-orderTimeoutMin" type="number" min="1" max="720" step="1" /></label>
-              <label class="bot-check"><input id="bot-useCalls" type="checkbox" /> <span>Inclure les calls Telegram qui passent le Filtre Pulse</span></label>
               <label>Positions bot max<input id="bot-maxOpen" type="number" min="1" max="20" step="1" /></label>
               <label>Perte max par jour (% du capital)<input id="bot-dailyLossPct" type="number" min="0.5" max="100" step="0.5" /></label>
               <label>Pas de ré-entrée avant (h)<input id="bot-cooldownHours" type="number" min="0" max="168" step="1" /></label>
