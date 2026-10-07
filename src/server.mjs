@@ -88,7 +88,7 @@ const standingsRequests = new Map();
 const RATE_WINDOW_MS = 60_000;
 const RATE_LIMIT = 30;
 const SECURITY_HEADERS = {
-  "content-security-policy": "default-src 'self'; script-src 'self' chrome-extension: moz-extension:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.dexscreener.com https://socialimages.pump.fun; connect-src 'self' https://*.walletconnect.org https://*.walletconnect.com https://*.reown.com wss://*.walletconnect.org wss://*.walletconnect.com; frame-src https://verify.walletconnect.org https://verify.walletconnect.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+  "content-security-policy": "default-src 'self'; script-src 'self' chrome-extension: moz-extension:; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.dexscreener.com https://socialimages.pump.fun https://images.pump.fun https://imagedelivery.net; connect-src 'self' https://*.walletconnect.org https://*.walletconnect.com https://*.reown.com wss://*.walletconnect.org wss://*.walletconnect.com; frame-src https://verify.walletconnect.org https://verify.walletconnect.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
   "cross-origin-opener-policy": "same-origin",
   "permissions-policy": "camera=(), microphone=(), geolocation=()",
   "referrer-policy": "no-referrer",
@@ -431,7 +431,7 @@ const server = createServer(async (request, response) => {
         return;
       }
       try {
-        sendJson(response, 200, { pool, timeframe, candles: await getCandles(pool, timeframe) });
+        sendJson(response, 200, { pool, timeframe, candles: await getCandles(pool, timeframe, { background: url.searchParams.get("bg") === "1" }) });
       } catch (error) {
         console.warn("Chart unavailable:", error.message);
         sendJson(response, 502, { error: "Chart data unavailable" });

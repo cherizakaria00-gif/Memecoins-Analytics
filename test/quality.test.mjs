@@ -63,3 +63,17 @@ test("pump.fun origin is detected without relying on the vanity suffix", () => {
   assert.equal(isPumpOrigin({ address: "abc", dex: "raydium" }), false);
   assert.equal(lifeStage({ address: "64ad16XapwT8y7UQPioMJzC91RgjZCEAeR4x8XNYUBTY", dex: "pumpswap", marketCap: 400_000 }), "migrated");
 });
+
+test("the Pulse Filter requires a website and a social network, unless the links are unknown or the rule is off", () => {
+  const base = { ageMinutes: 60, marketCap: 120_000, liquidity: 60_000, volume24h: 500_000, solPriceUsd: 100, address: "AAA" };
+  const links = (website, twitter) => ({ website, twitter, telegram: null, discord: null, count: Number(Boolean(website)) + Number(Boolean(twitter)) });
+  assert.equal(evaluateQuality({ ...base, socials: links("https://a.xyz/", "https://x.com/a") }).passes, true);
+  const noWebsite = evaluateQuality({ ...base, socials: links(null, "https://x.com/a") });
+  assert.equal(noWebsite.passes, false);
+  assert.equal(noWebsite.checks.find(check => check.id === "socials").ok, false);
+  assert.equal(evaluateQuality({ ...base, socials: links("https://a.xyz/", null) }).passes, false);
+  assert.equal(evaluateQuality({ ...base }).passes, true);
+  assert.equal(evaluateQuality({ ...base, socials: links(null, null) }, { ...DEFAULT_QUALITY, requireSocials: false }).passes, true);
+  assert.equal(qualityConfigFromEnv({ QUALITY_REQUIRE_SOCIALS: "0" }).requireSocials, false);
+  assert.equal(qualityConfigFromEnv({}).requireSocials, true);
+});

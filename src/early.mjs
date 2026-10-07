@@ -2,7 +2,7 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const num = value => (Number.isFinite(Number(value)) ? Number(value) : 0);
 
 /** Safety flags (from the entry signal) that disqualify a start whatever its momentum. */
-const BLOCKING_FLAGS = new Set(["low-liquidity", "sell-pressure", "dumping", "thin-vs-mcap", "big-orders", "turnover", "concentrated", "insiders", "below-minimums"]);
+const BLOCKING_FLAGS = new Set(["low-liquidity", "sell-pressure", "dumping", "thin-vs-mcap", "big-orders", "turnover", "concentrated", "insiders", "below-minimums", "rugcheck", "one-sided-buys", "few-txns", "authority"]);
 
 export const EARLY_MIN_SCORE = 60;
 

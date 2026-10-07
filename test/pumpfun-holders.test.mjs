@@ -40,3 +40,10 @@ test("concentration and insiders turn a tradable setup into an avoid", () => {
   const spread = evaluateSignal({ ...base, holderStats: { reliable: true, top10Pct: 12, devPct: 0, sniperPct: 0, bundlerPct: 0, totalHolders: 2000 } });
   assert.ok(spread.reasons.includes("Supply bien répartie"));
 });
+
+test("coins without a DEX Screener logo use pump.fun's own image CDN, only for valid mints", async () => {
+  const { pumpImageUrl } = await import("../src/pumpfun-client.mjs");
+  assert.equal(pumpImageUrl("E7dri7aBzEM6vYCijBU94DQdmWPQrMbZy9Abms4Vpump"), "https://images.pump.fun/coin-image/E7dri7aBzEM6vYCijBU94DQdmWPQrMbZy9Abms4Vpump?variant=86x86");
+  assert.equal(pumpImageUrl("not a mint/../../x"), null);
+  assert.equal(pumpImageUrl(undefined), null);
+});

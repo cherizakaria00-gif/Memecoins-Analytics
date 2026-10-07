@@ -1093,3 +1093,38 @@ body.mode-live .trade-title strong { color: #fb923c; }
 .tg-link { display: grid; gap: 6px; padding: 8px 0; border-top: 1px solid var(--line); }
 .tg-link-body { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); } .tg-link-body:empty { display: none; }
 .tg-link-body code { padding: 2px 8px; border: 1px solid var(--line); border-radius: 6px; background: rgba(255,255,255,.04); color: var(--green); user-select: all; }
+
+/* ---- Sniper Score and filter funnel ---- */
+.funnel { display: grid; gap: 8px; margin: 4px 0 22px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.funnel:empty { display: none; }
+.funnel-step { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 36px; padding: 0 14px; border-radius: 9px; overflow: hidden; font-size: .86rem; }
+.funnel-bar { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, rgba(103, 224, 138, .28), rgba(103, 224, 138, .08)); border-radius: 9px; transition: width .5s; }
+.funnel-step span, .funnel-step strong { position: relative; } .funnel-step strong { font-family: var(--mono, monospace); color: var(--green); }
+.sniper-line { margin: 2px 0 6px; } .sniper-line:empty { display: none; }
+.sniper-chip { display: inline-flex; gap: 6px; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: .72rem; border: 1px solid var(--line); cursor: help; }
+.sniper-chip.good { color: #67e08a; border-color: rgba(103, 224, 138, .4); background: rgba(103, 224, 138, .08); }
+.sniper-chip.mid { color: #e8c35a; border-color: rgba(232, 195, 90, .4); background: rgba(232, 195, 90, .08); }
+.sniper-chip.low { color: #e27c7c; border-color: rgba(226, 124, 124, .4); background: rgba(226, 124, 124, .08); }
+
+/* ---- Social presence ---- */
+.social-link { text-decoration: none; cursor: pointer; } .social-link:hover { filter: brightness(1.25); }
+.soc-row { display: inline-flex; gap: 4px; align-items: center; margin-left: 6px; vertical-align: middle; }
+.soc-row i { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-style: normal; font-size: .72rem; border: 1px solid var(--line); }
+.soc-row i.on { color: #67e08a; border-color: rgba(103, 224, 138, .4); background: rgba(103, 224, 138, .08); }
+.soc-row i.off { color: #6c7a72; opacity: .45; }
+.soc-none { padding: 3px 9px; border-radius: 999px; font-size: .72rem; color: #e27c7c; border: 1px solid rgba(226, 124, 124, .4); background: rgba(226, 124, 124, .08); }
+
+/* ---- Landing: Telegram alerts demo ---- */
+.tg-showcase { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; } .tg-showcase h2 { margin-bottom: 14px; }
+.tg-phone { max-width: 380px; width: 100%; justify-self: center; border: 1px solid #2a3a44; border-radius: 26px; background: #0e1621; box-shadow: 0 30px 80px rgba(0, 0, 0, .55), 0 0 0 6px #10171d; overflow: hidden; }
+.tg-top { display: flex; align-items: center; gap: 10px; padding: 14px 16px; background: #17212b; border-bottom: 1px solid #0b1118; }
+.tg-top > div { flex: 1; min-width: 0; } .tg-top b { display: block; font-size: .95rem; } .tg-top small { color: #6d8296; font-size: .72rem; } .tg-top small.typing { color: #5eb5f7; }
+.tg-top .mock-tag { font-size: .62rem; white-space: nowrap; }
+.tg-avatar { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #67e08a, #2f9e5b); color: #06130b; font-weight: 800; }
+.tg-chat { display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; min-height: 340px; padding: 16px 14px 20px; background: radial-gradient(circle at 20% 10%, #13202c, #0e1621 60%); }
+.tg-msg { position: relative; align-self: flex-start; max-width: 88%; display: grid; gap: 2px; padding: 9px 12px 18px; border-radius: 14px 14px 14px 4px; background: #182533; font-size: .84rem; line-height: 1.35; }
+.tg-msg b { font-size: .86rem; } .tg-msg span { color: #b6c4d0; } .tg-msg time { position: absolute; right: 10px; bottom: 4px; font-size: .64rem; color: #6d8296; }
+.tg-msg.enter { animation: tgIn .45s cubic-bezier(.2, .9, .3, 1.2); }
+@keyframes tgIn { from { opacity: 0; transform: translateY(14px) scale(.92); } to { opacity: 1; transform: none; } }
+@media (max-width: 860px) { .tg-showcase { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .tg-msg.enter { animation: none; } }

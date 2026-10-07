@@ -21,7 +21,7 @@ test("hard filters cap the score and explain why", () => {
   const cases = [
     [{ liquidity: 8_000 }, /Liquidité trop faible/],
     [{ ageMinutes: 5 }, /trop récent/],
-    [{ change6h: 900 }, /trop monté/],
+    [{ change: 300 }, /trop monté/],
     [{ change: -40 }, /Chute/],
     [{ buys: 80, sells: 300 }, /vendeuse/],
     [{ athMarketCap: 10_000_000 }, /ATH/],

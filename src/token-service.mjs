@@ -1,9 +1,13 @@
 import { fetchLiveSolanaTokens, fetchTokensByAddress, searchSolanaTokens } from "./dexscreener-client.mjs";
 import { listTokens as listMockTokens } from "./token-source.mjs";
 import { evaluateSignal, riskFromGrade } from "./signal.mjs";
-import { fetchHolderStats, fetchPumpCoinDetail } from "./pumpfun-client.mjs";
+import { fetchHolderStats, fetchPumpCoinDetail, recordHolderGrowth } from "./pumpfun-client.mjs";
 import { evaluateQuality, isPumpOrigin, qualityConfigFromEnv } from "./quality.mjs";
 import { evaluateEarly } from "./early.mjs";
+import { evaluateSniper } from "./sniper.mjs";
+import { buildSocials } from "./socials.mjs";
+import { fetchRugChecks } from "./rugcheck-client.mjs";
+import { fetchJupiterTokens } from "./jupiter-client.mjs";
 
 const CACHE_TTL_MS = 20_000;
 const HISTORY_LIMIT = 240;
@@ -57,7 +61,7 @@ export function enrichToken({ priceAnchors, ...token }) {
   const withAth = { ...token, athMarketCap: updateAthMarketCap({ ...token, priceAnchors }) };
   const enriched = { ...withAth, quality: evaluateQuality(withAth, qualityConfigFromEnv()) };
   const signal = evaluateSignal(enriched);
-  return { ...enriched, score: signal.score, risk: riskFromGrade(signal.grade), signal, early: evaluateEarly(enriched, signal), priceHistory: buildPriceHistory({ ...token, priceAnchors }) };
+  return { ...enriched, score: signal.score, risk: riskFromGrade(signal.grade), signal, early: evaluateEarly(enriched, signal), sniper: evaluateSniper(enriched), priceHistory: buildPriceHistory({ ...token, priceAnchors }) };
 }
 
 const MAX_HOLDER_CHECKS = 12;
@@ -69,6 +73,7 @@ export async function fillPumpStage(tokens, { fetchImpl = fetch, now = Date.now(
   await Promise.all(missing.map(async token => {
     try {
       const coin = await fetchPumpCoinDetail(token.address, { fetchImpl, now });
+      if (coin) token.socials = buildSocials(token.socials, coin);
       if (coin) token.pump = { graduated: coin.graduated, bondingProgress: coin.bondingProgress, replyCount: coin.replyCount, isLive: coin.isLive, hasSocials: coin.hasSocials, url: coin.url };
     } catch { /* the market-cap guess is used instead */ }
   }));
@@ -84,9 +89,42 @@ export async function applyHolderChecks(tokens, { fetchImpl = fetch, now = Date.
       if (!holderStats) return;
       token.holderStats = holderStats;
       const signal = evaluateSignal(token);
-      Object.assign(token, { signal, score: signal.score, risk: riskFromGrade(signal.grade), early: evaluateEarly(token, signal) });
+      Object.assign(token, { signal, score: signal.score, risk: riskFromGrade(signal.grade), early: evaluateEarly(token, signal), sniper: evaluateSniper(token) });
     } catch { /* holder data is optional */ }
   }));
+  return tokens;
+}
+
+/** Adds Jupiter's data (holders, Organic Score, authorities, organic buyers) to every token and re-grades them. No-op without JUPITER_API_KEY. */
+export async function applyJupiterData(tokens, { fetchImpl = fetch, now = Date.now(), env = process.env } = {}) {
+  const data = await fetchJupiterTokens(tokens.map(token => token.address), { fetchImpl, now, env });
+  if (!data.size) return tokens;
+  for (const token of tokens) {
+    const jup = data.get(token.address);
+    if (!jup) continue;
+    token.socials = buildSocials(token.socials, jup.links);
+    token.quality = evaluateQuality(token, qualityConfigFromEnv());
+    token.jup = { ...jup, holderGrowth10m: recordHolderGrowth(`jup:${token.address}`, jup.holderCount, now) };
+    const signal = evaluateSignal(token);
+    Object.assign(token, { signal, score: signal.score, risk: riskFromGrade(signal.grade), early: evaluateEarly(token, signal), sniper: evaluateSniper(token) });
+  }
+  return tokens;
+}
+
+const MAX_RUGCHECKS = 20;
+
+/** RugCheck on the tokens that already look promising (qualified, early start or passing the Pulse filter with a high score), then re-grades them. */
+export async function applyRugChecks(tokens, { fetchImpl = fetch, now = Date.now(), env = process.env } = {}) {
+  const candidates = tokens.filter(token => token.signal?.tradable || token.early?.candidate || (token.quality?.passes && token.score >= 55))
+    .sort((first, second) => second.score - first.score).slice(0, MAX_RUGCHECKS);
+  const data = await fetchRugChecks(candidates.map(token => token.address), { fetchImpl, now, env });
+  for (const token of candidates) {
+    const rug = data.get(token.address);
+    if (!rug) continue;
+    token.rug = rug;
+    const signal = evaluateSignal(token);
+    Object.assign(token, { signal, score: signal.score, risk: riskFromGrade(signal.grade), early: evaluateEarly(token, signal), sniper: evaluateSniper(token) });
+  }
   return tokens;
 }
 
@@ -98,7 +136,7 @@ export async function getTokenFeed({ refresh = false, fetchImpl = fetch } = {}) 
     const fetched = await fetchLiveSolanaTokens({ fetchImpl, now });
     recordPrices(fetched, now);
     await fillPumpStage(fetched, { fetchImpl, now });
-    const tokens = await applyHolderChecks(fetched.map(enrichToken), { fetchImpl, now });
+    const tokens = await applyRugChecks(await applyHolderChecks(await applyJupiterData(fetched.map(enrichToken), { fetchImpl, now }), { fetchImpl, now }), { fetchImpl, now });
     cache = { tokens, source: "dexscreener", live: true, scanned: tokens.length, updatedAt: now };
   } catch (error) {
     console.warn("Live feed unavailable; using simulation:", error.message);

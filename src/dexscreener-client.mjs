@@ -1,5 +1,6 @@
+import { buildSocials } from "./socials.mjs";
 import { calculateMarketSignal, calculatePumpAdjustment } from "./scoring.mjs";
-import { fetchPumpCoins } from "./pumpfun-client.mjs";
+import { fetchPumpCoins, pumpImageUrl } from "./pumpfun-client.mjs";
 import { fetchActiveMints } from "./geckoterminal-client.mjs";
 
 const API_ROOT = "https://api.dexscreener.com";
@@ -109,8 +110,9 @@ export function mapPairToToken(pair, now = Date.now(), pump = null) {
     dexUrl: pair?.url ?? null,
     name,
     symbol,
-    imageUrl: safeImageUrl(pair?.info?.imageUrl),
+    imageUrl: safeImageUrl(pair?.info?.imageUrl) ?? (pump || String(pair?.baseToken?.address ?? "").endsWith("pump") ? pumpImageUrl(pair?.baseToken?.address) : null),
     twitterUrl: findTwitterUrl(pair?.info, pump?.twitter),
+    socials: buildSocials(pair?.info, pump),
     initials: symbol.slice(0, 2).toUpperCase(),
     ageMinutes,
     age: formatAge(ageMinutes),

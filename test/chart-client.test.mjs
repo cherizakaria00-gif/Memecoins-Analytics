@@ -28,3 +28,18 @@ test("returns no candles for an unindexed pool", async () => {
   const fetchImpl = async () => ({ ok: false, status: 404 });
   assert.deepEqual(await getCandles("9vxJ3AwXFZ4Vnnw71H8h2hDSqBDNafV3X73TgKAU9Mzv", "1h", { fetchImpl }), []);
 });
+
+test("a 429 backs off globally and serves the last candles instead of failing", async () => {
+  const { getCandles, _test } = await import("../src/chart-client.mjs");
+  _test.reset();
+  const pool = "9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM";
+  const ok = { ok: true, status: 200, json: async () => ({ data: { attributes: { ohlcv_list: [[1, 1, 2, 1, 1.5, 10]] } } }) };
+  let calls = 0;
+  const limited = async () => { calls++; return { ok: false, status: 429, headers: new Headers({ "retry-after": "30" }) }; };
+  assert.equal((await getCandles(pool, "1m", { fetchImpl: async () => ok, now: 1_000 })).length, 1);
+  assert.equal((await getCandles(pool, "1m", { fetchImpl: limited, now: 20_000 })).length, 1);
+  assert.equal((await getCandles(pool, "1m", { fetchImpl: limited, now: 40_000 })).length, 1);
+  assert.equal(calls, 1);
+  await assert.rejects(() => getCandles(pool, "5m", { fetchImpl: limited, now: 41_000 }), /rate limit/);
+  _test.reset();
+});

@@ -78,7 +78,7 @@ test("enriched tokens carry a quality verdict and reuse the last known SOL price
 import { getTokenStatuses } from "../src/token-service.mjs";
 
 test("token statuses report the current price, liquidity and Pulse verdict, and skip unknown tokens", async () => {
-  const pair = { chainId: "solana", dexId: "raydium", baseToken: { address: "st-1", name: "Status", symbol: "STA" }, quoteToken: { symbol: "SOL" }, priceUsd: "0.5", priceNative: "0.005", marketCap: 120_000, liquidity: { usd: 45_000 }, volume: { h24: 80_000 }, txns: { h24: { buys: 10, sells: 5 } }, pairAddress: "p-st", pairCreatedAt: 1_000_000 };
+  const pair = { chainId: "solana", dexId: "raydium", baseToken: { address: "st-1", name: "Status", symbol: "STA" }, quoteToken: { symbol: "SOL" }, priceUsd: "0.5", priceNative: "0.005", marketCap: 120_000, liquidity: { usd: 45_000 }, volume: { h24: 80_000 }, txns: { h24: { buys: 10, sells: 5 } }, pairAddress: "p-st", info: { websites: [{ url: "https://coin.xyz" }], socials: [{ type: "twitter", url: "https://x.com/coin" }] }, pairCreatedAt: 1_000_000 };
   let calls = 0;
   const fetchImpl = async () => { calls += 1; return { ok: true, json: async () => [pair] }; };
   const [status] = await getTokenStatuses(["st-1", "unknown-1"], { fetchImpl, now: 90_000_000 });

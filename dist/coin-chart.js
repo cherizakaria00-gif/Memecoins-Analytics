@@ -35,6 +35,7 @@ export function createCoinChart(container) {
   const markers = createSeriesMarkers(candles, []);
   let priceLines = [];
   let planLines = [];
+  let limitLines = [];
   let lastCandle = null;
 
   const observer = new ResizeObserver(() => chart.applyOptions({ width: container.clientWidth, height: container.clientHeight }));
@@ -62,6 +63,11 @@ export function createCoinChart(container) {
     setEntryLines(lines) {
       priceLines.forEach(line => candles.removePriceLine(line));
       priceLines = lines.map(({ price, title }) => candles.createPriceLine({ price, title, color: "#fde047", lineStyle: 2, lineWidth: 1, axisLabelVisible: true }));
+    },
+    /** Pullback entry levels (pending limit orders and the preview of the typed pullback), drawn as blue dotted lines. */
+    setLimitLines(lines) {
+      limitLines.forEach(line => candles.removePriceLine(line));
+      limitLines = lines.map(({ price, title }) => candles.createPriceLine({ price, title, color: "#38bdf8", lineStyle: 3, lineWidth: 2, axisLabelVisible: true }));
     },
     /** Plan levels (entry, stop, targets) drawn as dashed lines. */
     setPlanLines(lines) {

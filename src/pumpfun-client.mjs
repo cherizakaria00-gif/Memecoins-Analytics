@@ -13,6 +13,11 @@ function asFiniteNumber(value, fallback = 0) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+/** pump.fun's own image CDN (redirects to its Cloudflare Images bucket): the same logo the pump.fun site shows, whatever host the metadata points to. */
+export function pumpImageUrl(mint) {
+  return typeof mint === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint) ? `https://images.pump.fun/coin-image/${mint}?variant=86x86` : null;
+}
+
 /** Keeps only the pump.fun fields used for analysis; the unofficial API returns far more. */
 export function mapPumpCoin(coin) {
   return {
@@ -25,6 +30,8 @@ export function mapPumpCoin(coin) {
     creator: coin?.creator ?? null,
     lastTradeAt: asFiniteNumber(coin?.last_trade_timestamp, null),
     twitter: typeof coin?.twitter === "string" ? coin.twitter : "",
+    telegram: typeof coin?.telegram === "string" ? coin.telegram : "",
+    website: typeof coin?.website === "string" ? coin.website : "",
     hasSocials: Boolean(coin?.twitter || coin?.telegram || coin?.website),
     url: coin?.mint ? `https://pump.fun/coin/${coin.mint}` : null
   };
@@ -84,6 +91,21 @@ export function summarizeHolders(payload) {
   };
 }
 
+const holderHistory = new Map();
+const GROWTH_WINDOW_MS = 40 * 60_000;
+const MIN_GROWTH_SPAN_MS = 3 * 60_000;
+/** Holders gained per 10 minutes, measured over the samples this server has recorded (null until it has watched the token for 3+ minutes). */
+export function recordHolderGrowth(mint, total, now) {
+  if (!(total > 0)) return null;
+  const series = (holderHistory.get(mint) ?? []).filter(point => now - point.at <= GROWTH_WINDOW_MS);
+  if (!series.length || now - series[series.length - 1].at >= 60_000) series.push({ at: now, total });
+  holderHistory.set(mint, series);
+  if (holderHistory.size > 500) holderHistory.delete(holderHistory.keys().next().value);
+  const first = series[0], last = series[series.length - 1];
+  const span = last.at - first.at;
+  return span >= MIN_GROWTH_SPAN_MS ? ((last.total - first.total) / span) * 600_000 : null;
+}
+
 const holderCache = new Map();
 const HOLDER_TTL_MS = 5 * 60_000;
 
@@ -100,6 +122,7 @@ export async function fetchHolderStats(mint, { fetchImpl = fetch, now = Date.now
     return null;
   }
   const stats = summarizeHolders(await response.json());
+  stats.growth10m = recordHolderGrowth(mint, stats.totalHolders, now);
   holderCache.set(mint, { at: now, stats });
   if (holderCache.size > 300) holderCache.delete(holderCache.keys().next().value);
   return stats;

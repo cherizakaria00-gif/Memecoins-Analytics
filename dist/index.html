@@ -15,7 +15,7 @@
       <div class="landing" id="gate-landing">
         <header class="land-nav">
           <a class="gate-brand" href="/" aria-label="Pulse"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong>PULSE</strong></a>
-          <nav class="land-links" aria-label="Sections"><a href="#fonctions">Fonctions</a><a href="#bot">Bot</a><a href="#resultats">Résultats</a><a href="#methode">Comment ça marche</a><a href="#tarif">Tarif</a><a href="#faq">FAQ</a></nav>
+          <nav class="land-links" aria-label="Sections"><a href="#fonctions">Fonctions</a><a href="#bot">Bot</a><a href="#telegram">Telegram</a><a href="#resultats">Résultats</a><a href="#methode">Comment ça marche</a><a href="#tarif">Tarif</a><a href="#faq">FAQ</a></nav>
           <div class="land-cta"><button class="lang-switch" type="button" data-lang-switch aria-label="Langue / Language">🌐 <span data-lang-label></span></button><button class="land-login" type="button" data-open-auth="login">Connexion</button><button class="land-start" type="button" data-open-auth="signup">Commencer</button></div>
         </header>
 
@@ -93,6 +93,26 @@
               <div class="bot-mock-grid"><div><small>Taille d'entrée</small><b>5 %</b></div><div><small>Stop-loss</small><b class="down">−25 %</b></div><div><small>Take-profit</small><b class="up">+50 %</b></div><div><small>Positions bot max</small><b>3</b></div></div>
               <div class="bot-mock-log"><div><time>16:07</time><span>Achat $500 · $EXAMPLE (qualifié, score 78) · SL −25 % · TP +50 %</span></div><div><time>15:42</time><span>Achat $500 · $DEMO (⚡ démarrage, score 82) · SL −25 % · TP +50 %</span></div><div><time>15:20</time><span>Take-profit atteint · $SAMPLE · +$152</span></div></div>
               <div class="bot-mock-status"><em class="mock-tag">Aperçu illustratif</em>2 / 3 positions bot · réussite 72 % · aujourd'hui +$38</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="land-section" id="telegram">
+          <div class="tg-showcase">
+            <div>
+              <p class="eyebrow">ALERTES TELEGRAM</p><h2>Tes alertes en direct sur ton téléphone</h2>
+              <p class="land-note">Lie ton Telegram en 10 secondes : Pulse t'envoie les mêmes alertes que dans l'app, au moment où elles se produisent. Tu n'as plus besoin de garder l'écran ouvert devant toi.</p>
+              <ul class="bot-points">
+                <li><b>Position en positif</b> : ton trade passe de la perte au gain, tu le sais tout de suite.</li>
+                <li><b>Ordres du bot</b> : achats, ordres limites exécutés ou expirés, stop-loss et take-profit.</li>
+                <li><b>Signaux</b> : nouveau signal qualifié, démarrage ⚡ ou bon point d'entrée détecté.</li>
+                <li><b>Liaison simple et privée</b> : un code à envoyer au bot Pulse. Pulse n'accède ni à tes discussions ni à tes groupes, et tu peux délier à tout moment.</li>
+              </ul>
+              <p class="results-disclaimer">Les alertes partent quand Pulse est ouvert dans un onglet de ton navigateur. Aperçu animé ci-contre : messages d'exemple générés pour la démonstration.</p>
+            </div>
+            <div class="tg-phone" aria-hidden="true">
+              <div class="tg-top"><span class="tg-avatar">P</span><div><b>Pulse</b><small id="tg-state">bot</small></div><em class="mock-tag">Aperçu illustratif</em></div>
+              <div class="tg-chat" id="tg-chat"></div>
             </div>
           </div>
         </section>
@@ -414,6 +434,7 @@
             </div>
             <p class="signals-help">Tokens qui passent tous les filtres de sécurité et obtiennent un score d'au moins 65. Ce n'est pas une garantie de gain : vérifie la fiabilité du signal dans le Scanner avant de trader.</p>
           </div>
+          <div class="funnel" id="sniper-funnel" aria-label="Entonnoir de filtres"></div>
           <h2 class="watch-title early-title">⚡ Démarrages détectés <small>début de mouvement avant la grosse hausse</small></h2>
           <p class="early-help">Coins qui viennent de passer environ +8 à +80 % sur 1 h, encore en hausse, avec volume et achats en accélération, liquides et pas encore étendus. C'est le profil des coins qui finissent par faire +100 % ou +200 %, mais la plupart des démarrages avortent : mets toujours un stop-loss.</p>
           <div class="signal-cards" id="early-cards"></div>
@@ -473,7 +494,7 @@
             <div class="explore-controls">
               <div class="scanner-state"><span class="pulse-ring"></span><strong id="scanner-label">Scanner actif</strong><span id="last-scan">connexion au marché…</span></div>
               <div class="timeframe-filter" role="group" aria-label="Horizon de variation">
-                <button type="button" data-timeframe="change5m">5m</button><button type="button" data-timeframe="change">1h</button><button class="active" type="button" data-timeframe="change6h">6h</button><button type="button" data-timeframe="change24h">24h</button>
+                <button type="button" data-timeframe="change5m">5m</button><button class="active" type="button" data-timeframe="change">1h</button><button type="button" data-timeframe="change6h">6h</button><button type="button" data-timeframe="change24h">24h</button>
               </div>
               <label class="period-select"><span class="sr-only">Période de création</span><select id="age-window"><option value="24">Dernières 24 heures</option><option value="6">Dernières 6 heures</option><option value="168">7 derniers jours</option><option value="all">Toutes les périodes</option></select></label>
               <label class="volume-select"><span class="sr-only">Volume minimum sur 24 heures</span><select id="minimum-volume"><option value="0">Tous les volumes</option><option value="10000">Volume &gt; 10 k$</option><option value="100000">Volume &gt; 100 k$</option><option value="1000000">Volume &gt; 1 M$</option></select></label>

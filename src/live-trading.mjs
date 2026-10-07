@@ -3,6 +3,7 @@ import { isValidSolanaAddress } from "./wallet-balance.mjs";
 export const SOL_MINT = "So11111111111111111111111111111111111111112";
 const LAMPORTS_PER_SOL = 1_000_000_000;
 const DEFAULT_JUPITER_URL = "https://lite-api.jup.ag/swap/v1";
+const KEYED_JUPITER_URL = "https://api.jup.ag/swap/v1";
 const DEFAULT_RPC_URL = "https://api.mainnet-beta.solana.com";
 const TOKEN_PROGRAMS = ["TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA", "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"];
 export const MAX_PRIORITY_SOL = 0.05;
@@ -26,7 +27,7 @@ export function liveConfig(env = process.env) {
   return {
     enabled: env.LIVE_TRADING !== "0",
     maxOrderSol: Number.isFinite(cap) && cap > 0 ? cap : 5,
-    jupiterUrl: (env.JUPITER_API_URL || DEFAULT_JUPITER_URL).replace(/\/+$/, ""),
+    jupiterUrl: (env.JUPITER_API_URL || (env.JUPITER_API_KEY ? KEYED_JUPITER_URL : DEFAULT_JUPITER_URL)).replace(/\/+$/, ""),
     jupiterKey: env.JUPITER_API_KEY || null,
     rpcUrl: env.SOLANA_RPC_URL || DEFAULT_RPC_URL,
     ...platformFee(env)

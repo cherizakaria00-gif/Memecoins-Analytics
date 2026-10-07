@@ -5,9 +5,10 @@
  *  - Migrated (graduated to the AMM, or not a launchpad token): $30K minimum market cap
  *  - Global fees paid: 0.5 SOL minimum, for every stage
  *  - Every token: at least 7 minutes old, $5K market cap and $10K liquidity
+ * - Project presence: a website AND at least one social network (X, Telegram or Discord) must be declared (QUALITY_REQUIRE_SOCIALS=0 turns it off).
  * Override with QUALITY_MIN_VOLUME, QUALITY_MIN_MCAP_FINAL, QUALITY_MIN_MCAP_MIGRATED and QUALITY_MIN_FEES_SOL.
  */
-export const DEFAULT_QUALITY = { minVolumeNew: 50, minMcapFinalStretch: 10_000, minMcapMigrated: 30_000, minFeesSol: 0.5, minAgeMinutes: 7, minMcap: 5_000, minLiquidity: 10_000 };
+export const DEFAULT_QUALITY = { requireSocials: true, minVolumeNew: 50, minMcapFinalStretch: 10_000, minMcapMigrated: 30_000, minFeesSol: 0.5, minAgeMinutes: 7, minMcap: 5_000, minLiquidity: 10_000 };
 
 const FINAL_STRETCH_PROGRESS = 0.5;
 const PUMP_GRADUATION_MCAP_USD = 69_000;
@@ -26,7 +27,8 @@ export function qualityConfigFromEnv(env = process.env) {
     minFeesSol: read("QUALITY_MIN_FEES_SOL", DEFAULT_QUALITY.minFeesSol),
     minAgeMinutes: read("QUALITY_MIN_AGE_MIN", DEFAULT_QUALITY.minAgeMinutes),
     minMcap: read("QUALITY_MIN_MCAP", DEFAULT_QUALITY.minMcap),
-    minLiquidity: read("QUALITY_MIN_LIQUIDITY", DEFAULT_QUALITY.minLiquidity)
+    minLiquidity: read("QUALITY_MIN_LIQUIDITY", DEFAULT_QUALITY.minLiquidity),
+    requireSocials: env.QUALITY_REQUIRE_SOCIALS !== "0"
   };
 }
 
@@ -60,6 +62,13 @@ export function evaluateQuality(token, config = DEFAULT_QUALITY) {
   checks.push({ id: "liquidity", label: "Liquidité minimum", value: num(token.liquidity), min: config.minLiquidity, unit: "usd" });
   if (config.minVolume24h > 0) checks.push({ id: "volume24h", label: "Volume 24 h minimum", value: token.volume24h == null ? null : num(token.volume24h), min: config.minVolume24h, unit: "usd" });
   checks.push({ id: "fees", label: "Frais globaux payés (estimés)", value: feesSol, min: config.minFeesSol, unit: "sol" });
-  for (const check of checks) check.ok = check.value != null && check.value >= check.min;
+  // Skipped when the links are unknown (no data yet): a missing lookup must not eliminate a token.
+  if (config.requireSocials && token.socials) {
+    const socials = token.socials;
+    const networks = ["twitter", "telegram", "discord"].filter(key => socials[key]);
+    const detail = `Site ${socials.website ? "✓" : "✗"} · X ${socials.twitter ? "✓" : "✗"} · Telegram ${socials.telegram ? "✓" : "✗"} · Discord ${socials.discord ? "✓" : "✗"}`;
+    checks.push({ id: "socials", label: "Site web + réseau social", value: socials.count, min: 2, unit: "socials", detail, ok: Boolean(socials.website) && networks.length > 0 });
+  }
+  for (const check of checks.filter(item => item.id !== "socials")) check.ok = check.value != null && check.value >= check.min;
   return { stage, feesSol, checks, passes: checks.every(check => check.ok) };
 }

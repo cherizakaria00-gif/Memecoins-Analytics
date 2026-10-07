@@ -15,7 +15,6 @@ export function evaluateSignal(token) {
   const ageMinutes = num(token.ageMinutes);
   const vol5m = num(token.volume5m);
   const vol1h = num(token.volume);
-  const vol6h = num(token.volume6h);
   const vol24h = num(token.volume24h);
   const buys1h = num(token.buys);
   const sells1h = num(token.sells);
@@ -23,7 +22,6 @@ export function evaluateSignal(token) {
   const sells5m = num(token.sells5m);
   const change5m = num(token.change5m);
   const change1h = num(token.change);
-  const change6h = num(token.change6h);
   const change24h = num(token.change24h);
   const txns1h = buys1h + sells1h;
   const txns5m = buys5m + sells5m;
@@ -40,7 +38,7 @@ export function evaluateSignal(token) {
   if (ageMinutes < 20) flag("too-new", "Token trop récent (< 20 min) : zone de snipers");
   if (txns1h >= 20 && buyRatio1h < 0.4) flag("sell-pressure", "Pression vendeuse dominante sur 1 h");
   if (change1h <= -25) flag("dumping", "Chute en cours (−25 % ou pire sur 1 h)");
-  if (change6h >= 400 || change24h >= 2500) flag("already-pumped", "Déjà trop monté : risque de sommet");
+  if (change1h >= 250 || change24h >= 2500) flag("already-pumped", "Déjà trop monté : risque de sommet");
   if (marketCap > 0 && liquidity > 0 && marketCap / liquidity > 100) flag("thin-vs-mcap", "Market cap > 100× la liquidité");
   if (athRatio != null && athRatio < 0.3) flag("far-from-ath", "Loin de son ATH (< 30 %) : couteau qui tombe");
   if (vol1h > 0 && vol5m < vol1h * 0.015) flag("fading", "Marché qui s'éteint (volume 5 min quasi nul)");
@@ -52,6 +50,10 @@ export function evaluateSignal(token) {
   const holders = token.holderStats?.reliable ? token.holderStats : null;
   if (holders && holders.top10Pct > 60) flag("concentrated", `Top 10 détenteurs : ${Math.round(holders.top10Pct)} % du supply`);
   if (holders && holders.sniperPct + holders.bundlerPct + holders.devPct > 25) flag("insiders", `Snipers, bundlers et dev : ${Math.round(holders.sniperPct + holders.bundlerPct + holders.devPct)} % du supply`);
+  if (token.jup && (token.jup.mintAuthorityDisabled === false || token.jup.freezeAuthorityDisabled === false)) flag("authority", "Mint ou freeze authority active : le créateur peut créer ou geler des tokens");
+  if (token.rug?.danger?.length) flag("rugcheck", `RugCheck : ${token.rug.danger[0]}`);
+  if (txns1h >= 30 && buyRatio1h > 0.95) flag("one-sided-buys", "Achats à sens unique (> 95 %) : la vente est peut-être bloquée (honeypot)");
+  if (num(token.transactions) > 0 && num(token.transactions) < 10 && vol24h > 10_000) flag("few-txns", "Gros volume avec très peu de transactions : volume truqué probable");
   if (turnover > 25) flag("turnover", "Rotation de volume anormale (wash possible)");
 
   const reasons = [];
@@ -68,11 +70,15 @@ export function evaluateSignal(token) {
   score -= marketCap > 0 && liquidity > 0 && marketCap / liquidity > 40 ? 6 : 0;
   score += add(athRatio == null ? 0 : clamp((athRatio - 0.4) / 0.5, 0, 1) * 8, "Proche de son ATH");
   score += add(ageMinutes >= 60 && ageMinutes <= 1440 ? 5 : ageMinutes >= 20 ? 2 : 0, "Âge favorable");
-  score += add(vol6h > 0 && vol24h > 0 && vol6h / vol24h > 0.3 ? 5 : 0, "Activité récente soutenue");
+  score += add(vol1h > 0 && vol24h > 0 && (vol1h * 24) / vol24h > 1.5 ? 5 : 0, "Activité récente soutenue");
   score += add(holders && holders.top10Pct < 25 && holders.totalHolders >= 500 ? 5 : 0, "Supply bien répartie");
+  const growth10m = Number.isFinite(holders?.growth10m) ? holders.growth10m : token.jup?.holderGrowth10m;
+  score += add(growth10m >= 10 ? clamp(growth10m / 60, 0, 1) * 6 : 0, "Nombre de holders en forte hausse");
+  score += add(token.jup?.organicScore >= 50 ? 5 : token.jup?.organicScore >= 30 ? 2 : 0, "Trafic organique élevé (Jupiter)");
   const pump = token.pump;
   if (pump?.graduated) score += add(3, "Gradué de pump.fun");
-  if (pump?.hasSocials) score += add(2, "Réseaux sociaux présents");
+  const socialCount = token.socials ? token.socials.count : pump?.hasSocials ? 1 : 0;
+  if (socialCount > 0) score += add(Math.min(socialCount, 3) + 1, socialCount > 1 ? `${socialCount} réseaux sociaux présents` : "Réseau social présent");
 
   if (flags.length) score = Math.min(score, 39);
   score = Math.round(clamp(score, 0, 100));

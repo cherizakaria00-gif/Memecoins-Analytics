@@ -4,7 +4,7 @@ import { getNewCoins, newCoinsConfig, resetNewCoinsCache } from "../src/new-coin
 
 const NOW = 1_800_000_000_000;
 const coin = (mint, symbol, minutesOld, usdMarketCap, extra = {}) => ({ mint, name: symbol, symbol, created_timestamp: NOW - minutesOld * 60_000, usd_market_cap: usdMarketCap, market_cap: usdMarketCap / 120, real_sol_reserves: 20e9, complete: false, ...extra });
-const pair = (mint, symbol, volume, liquidity = 40_000, marketCap = 50_000) => ({ chainId: "solana", dexId: "pumpswap", baseToken: { address: mint, name: symbol, symbol }, quoteToken: { symbol: "SOL" }, priceUsd: "0.00005", priceNative: "0.0000004", marketCap, liquidity: { usd: liquidity }, volume: { h24: volume, h1: volume }, txns: { h24: { buys: 80, sells: 40 } }, pairCreatedAt: NOW - 120_000, pairAddress: `pair-${mint}` });
+const pair = (mint, symbol, volume, liquidity = 40_000, marketCap = 50_000) => ({ chainId: "solana", dexId: "pumpswap", baseToken: { address: mint, name: symbol, symbol }, quoteToken: { symbol: "SOL" }, priceUsd: "0.00005", priceNative: "0.0000004", marketCap, liquidity: { usd: liquidity }, volume: { h24: volume, h1: volume }, txns: { h24: { buys: 80, sells: 40 } }, info: { websites: [{ url: "https://coin.xyz" }], socials: [{ type: "twitter", url: "https://x.com/coin" }] }, pairCreatedAt: NOW - 120_000, pairAddress: `pair-${mint}` });
 
 function client({ coins, pairs }) {
   return async url => {

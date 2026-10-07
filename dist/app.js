@@ -60,7 +60,7 @@ const state = {
   query: "",
   ageWindow: 24,
   minimumVolume: 0,
-  timeframe: "change6h",
+  timeframe: "change",
   marketMode: "trending",
   sort: { key: "score", direction: "desc" },
   balance: savedWallet.balance,
@@ -253,6 +253,23 @@ function badge(text, tone, title = "") {
   return `<span class="cbadge ${tone}" title="${esc(title)}">${esc(text)}</span>`;
 }
 
+const SOCIAL_LABELS = { website: ["Site web", "🌐"], twitter: ["X", "𝕏"], telegram: ["Telegram", "✈"], discord: ["Discord", "💬"] };
+/** Social links of the token as badges: a link when present, nothing misleading when absent. */
+function socialBadges(token) {
+  const socials = token.socials;
+  if (!socials) return [];
+  if (!socials.count) return [badge("Aucun réseau social", "bad", "Ni site, ni X, ni Telegram, ni Discord déclarés : projet anonyme ou jeté à la va-vite.")];
+  return Object.entries(SOCIAL_LABELS).filter(([key]) => socials[key]).map(([key, [label, icon]]) =>
+    `<a class="cbadge blue social-link" href="${esc(socials[key])}" target="_blank" rel="noopener noreferrer nofollow" title="Lien déclaré par le projet, non vérifié">${icon} ${esc(label)} ↗</a>`);
+}
+/** Compact presence indicator for the signal cards. */
+function socialLine(token) {
+  const socials = token.socials;
+  if (!socials) return "";
+  if (!socials.count) return '<span class="soc-row"><span class="soc-none">Aucun réseau social</span></span>';
+  return `<span class="soc-row">${Object.entries(SOCIAL_LABELS).map(([key, [label, icon]]) => `<i class="${socials[key] ? "on" : "off"}" title="${esc(label)} : ${socials[key] ? "présent" : "absent"}">${icon}</i>`).join("")}</span>`;
+}
+
 /** Header of the coin window: badges and the key numbers of the token, like the top bar of a pump.fun coin page. */
 function renderCoinHeader(token) {
   const holders = token.holderStats ?? state.security.get(token.id)?.holders ?? state.holderStats.get(token.id);
@@ -268,6 +285,7 @@ function renderCoinHeader(token) {
   if (token.early?.early) badges.push(badge("⚡ Démarrage", "amber", token.early.stage));
   if (token.signal?.tradable) badges.push(badge(`Qualifié ${token.signal.grade}`, "good"));
   if (state.custom.has(token.id)) badges.push(badge("Ajouté par toi", "blue"));
+  badges.push(...socialBadges(token));
   document.querySelector("#coin-badges").innerHTML = badges.join("");
 }
 
@@ -338,10 +356,27 @@ function renderDetail() {
     const minText = check => (check.unit === "sol" ? `${check.min} SOL` : check.unit === "min" ? `${check.min} min` : formatMarketMoney(check.min));
     groups.push({
       title: `Filtre Pulse · ${QUALITY_STAGE_LABEL[token.quality.stage]} · ${token.quality.passes ? "validé" : "sous les minimums"}`,
-      rows: token.quality.checks.map(check => [check.ok, check.label, `${valueText(check)} / min ${minText(check)}`])
+      rows: token.quality.checks.map(check => [check.ok, check.label, check.unit === "socials" ? check.detail : `${valueText(check)} / min ${minText(check)}`])
     });
   }
   groups.push({ title: "Sécurité du token", rows: securityRows });
+  if (token.rug) {
+    groups.push({
+      title: "RugCheck",
+      rows: [
+        ...token.rug.danger.map(name => [false, "Risque critique", name]),
+        ...token.rug.warnings.map(name => [null, "Avertissement", name]),
+        ...(token.rug.danger.length || token.rug.warnings.length ? [] : [[true, "Risques signalés", "AUCUN"]]),
+        ...(token.rug.lpLockedPct == null ? [] : [[token.rug.lpLockedPct >= 50 ? true : null, "Liquidité verrouillée", `${Math.round(token.rug.lpLockedPct)} %`]])
+      ]
+    });
+  }
+  if (token.socials) {
+    groups.push({
+      title: "Réseaux sociaux (déclarés, non vérifiés)",
+      rows: Object.entries(SOCIAL_LABELS).map(([key, [label]]) => [token.socials[key] ? true : null, label, token.socials[key] ? "PRÉSENT" : "ABSENT"])
+    });
+  }
   if (token.pump) {
     const ratio = token.athMarketCap > 0 && token.marketCap > 0 ? Math.min(token.marketCap / token.athMarketCap, 1) : null;
     groups.push({
@@ -1020,6 +1055,7 @@ const coinModal = document.querySelector("#coin-modal");
 const chartStatus = document.querySelector("#chart-status");
 let coinChart = null;
 let chartCandles = [];
+let chartLoadedKey = null;
 let chartRefresh = null;
 let chartRequest = 0;
 state.chartTf = "5m";
@@ -1038,7 +1074,18 @@ function renderChartTrades() {
   });
   coinChart.setMarkers(markers);
   coinChart.setEntryLines(state.positions.filter(position => position.tokenId === token.id).map(position => ({ price: position.spotEntry, title: `Entrée $${Math.round(position.amount)}` })));
+  renderPullbackLines(token);
 }
+
+/** Entry on pullback: pending limit orders of this token, plus a preview of the pullback currently typed in the trade panel. */
+function renderPullbackLines(token = currentToken()) {
+  if (!coinChart) return;
+  const lines = manualOrders.filter(order => order.tokenId === token.id).map(order => ({ price: order.limitPrice, title: `Ordre limite −${order.dipPct} %` }));
+  const dip = Math.min(Math.max(Number(document.querySelector("#trade-dip").value) || 0, 0), 30);
+  if (dip > 0 && token.price > 0) lines.push({ price: token.price * (1 - dip / 100), title: `Entrée sur repli −${dip} %` });
+  coinChart.setLimitLines(lines.filter(line => line.price > 0));
+}
+document.querySelector("#trade-dip").addEventListener("input", () => { if (!coinModal.hidden) renderPullbackLines(); });
 
 async function loadChart({ fit = true } = {}) {
   const token = currentToken();
@@ -1056,12 +1103,13 @@ async function loadChart({ fit = true } = {}) {
     const payload = await response.json();
     if (request !== chartRequest) return;
     chartCandles = payload.candles ?? [];
+    chartLoadedKey = `${token.pairAddress}:${state.chartTf}`;
     coinChart.setCandles(chartCandles, { fit });
     setChartStatus(chartCandles.length ? null : "Pas encore de bougies pour ce coin (pool trop récent).");
     renderChartTrades();
     renderPlan();
   } catch {
-    if (request === chartRequest) setChartStatus("Graphique momentanément indisponible.");
+    if (request === chartRequest && chartLoadedKey !== `${token.pairAddress}:${state.chartTf}`) setChartStatus("Graphique momentanément indisponible.");
   }
 }
 
@@ -1253,6 +1301,7 @@ function renderManualOrders() {
   node.innerHTML = manualOrders.length
     ? `<div class="dash-head list-head"><strong>Ordres limites en attente</strong></div>${manualOrders.map(order => `<div class="limit-order"><span><b>$${esc(order.symbol)}</b> · achat ${formatMoney(order.amount)} à $${order.limitPrice.toLocaleString(locale, { maximumSignificantDigits: 4 })} (−${order.dipPct} %)</span><small>expire dans ${Math.max(0, Math.ceil((order.expiresAt - Date.now()) / 60_000))} min</small><button class="text-button" type="button" data-cancel-order="${esc(order.id)}">Annuler</button></div>`).join("")}`
     : "";
+  if (!coinModal.hidden) renderPullbackLines();
 }
 document.querySelector("#manual-orders").addEventListener("click", event => {
   const button = event.target.closest("[data-cancel-order]");
@@ -1510,7 +1559,8 @@ function signalCard(token) {
       <span class="signal-card-name"><strong>${esc(token.name)}</strong><small>$${esc(token.symbol)} · ${formatTokenAge(token)}${token.pump ? ` · ${token.pump.graduated ? "gradué" : "pump.fun"}` : ""}</small></span>
       <span class="grade grade-${esc(token.signal?.grade ?? "C")}">${esc(token.signal?.grade ?? "")} <b>${token.score}</b></span>
     </div>
-    <div class="signal-card-stats"><span>MCAP <strong>${formatMarketMoney(token.marketCap)}</strong></span><span>Liq <strong>${formatMarketMoney(token.liquidity)}</strong></span><span>1H ${changePill(token.change, "")}</span><span>6H ${changePill(token.change6h, "")}</span></div>
+    <div class="signal-card-stats"><span>MCAP <strong>${formatMarketMoney(token.marketCap)}</strong></span><span>Liq <strong>${formatMarketMoney(token.liquidity)}</strong></span><span>5M ${changePill(token.change5m, "")}</span><span>1H ${changePill(token.change, "")}</span></div>
+    <div class="sniper-line">${sniperChip(token)}${socialLine(token)}</div>
     <div data-plan-chip="${esc(token.id)}">${planChip(token)}</div>
     <ul class="signal-card-reasons">${reasons}</ul>
   </button>`;
@@ -1525,13 +1575,34 @@ function earlyCard(token) {
       <span class="signal-card-name"><strong>${esc(token.name)}</strong><small>$${esc(token.symbol)} · ${formatTokenAge(token)}${token.pump ? ` · ${token.pump.graduated ? "gradué" : "pump.fun"}` : ""}</small></span>
       <span class="grade grade-early">⚡ <b>${early.score}</b></span>
     </div>
-    <div class="signal-card-stats"><span>${esc(early.stage)}</span><span>5M ${changePill(token.change5m, "")}</span><span>1H ${changePill(token.change, "")}</span><span>6H ${changePill(token.change6h, "")}</span></div>
+    <div class="signal-card-stats"><span>${esc(early.stage)}</span><span>5M ${changePill(token.change5m, "")}</span><span>1H ${changePill(token.change, "")}</span></div>
     <div class="signal-card-stats"><span>MCAP <strong>${formatMarketMoney(token.marketCap)}</strong></span><span>Liq <strong>${formatMarketMoney(token.liquidity)}</strong></span><span>Vol ×<strong>${early.acceleration.toFixed(1)}</strong></span></div>
     <ul class="signal-card-reasons">${reasons}</ul>
   </button>`;
 }
 
+const FUNNEL_STEPS = [["scanned", "Tokens analysés"], ["security", "Sécurité OK"], ["momentum", "Momentum OK"], ["entry", "Sniper ≥ 65"]];
+function sniperFunnel(list) {
+  const analysed = list.filter(token => token.sniper);
+  const secure = analysed.filter(token => token.sniper.layers[0].passed);
+  const active = secure.filter(token => token.sniper.layers[1].passed);
+  return { scanned: analysed.length, security: secure.length, momentum: active.length, entry: active.filter(token => token.sniper.entry).length };
+}
+function renderFunnel() {
+  const counts = sniperFunnel(tokens);
+  const top = Math.max(counts.scanned, 1);
+  document.querySelector("#sniper-funnel").innerHTML = counts.scanned ? FUNNEL_STEPS.map(([key, label]) =>
+    `<div class="funnel-step"><div class="funnel-bar" style="width:${Math.max((counts[key] / top) * 100, 4)}%"></div><span>${esc(label)}</span><strong>${counts[key]}</strong></div>`).join("") : "";
+}
+const sniperTone = score => (score >= 65 ? "good" : score >= 45 ? "mid" : "low");
+function sniperChip(token) {
+  if (!token.sniper) return "";
+  const lines = token.sniper.layers.map(layer => `${layer.label} ${layer.passed ? "✔" : "✖"} ${Math.round(layer.score)}/${layer.max}\n` + layer.checks.map(item => `${item.status === "ok" ? "✔" : item.status === "fail" ? "✖" : "?"} ${item.label} : ${item.text}`).join("\n")).join("\n\n");
+  return `<span class="sniper-chip ${sniperTone(token.sniper.score)}" title="${esc(lines)}">Sniper <b>${token.sniper.score}</b> · ${esc(token.sniper.verdict)}</span>`;
+}
+
 function renderSignals() {
+  renderFunnel();
   const starts = tokens.filter(token => token.early?.early).sort((first, second) => second.early.score - first.early.score);
   document.querySelector("#early-cards").innerHTML = starts.length
     ? starts.map(earlyCard).join("")
@@ -2275,7 +2346,7 @@ async function refreshPlans() {
     const cached = planCache.get(token.id);
     if (cached && Date.now() - cached.at < PLAN_TTL_MS) continue;
     try {
-      const response = await fetch(`/api/chart?pool=${encodeURIComponent(token.pairAddress)}&tf=5m`, { headers: { accept: "application/json" } });
+      const response = await fetch(`/api/chart?pool=${encodeURIComponent(token.pairAddress)}&tf=5m&bg=1`, { headers: { accept: "application/json" } });
       if (!response.ok) continue;
       const { candles } = await response.json();
       const plan = buildTradePlan(candles, { price: token.price, signal: token.signal });

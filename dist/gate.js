@@ -109,6 +109,51 @@ if (feed) {
   }, 2800);
 }
 
+/* ---- Landing: Telegram alerts demo (example messages arriving live, generated for the demo) ---- */
+const TG_SYMBOLS = ["ZAPPY", "MOONCAT", "PIXEL", "NOVA", "FROGGY", "TURBO", "KAIJU", "ORBIT"];
+const tgSigned = (value, digits = 1) => `${value >= 0 ? "+" : "−"}${Math.abs(value).toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+function makeTelegramAlert() {
+  const symbol = pick(TG_SYMBOLS);
+  const pct = 0.5 + Math.random() * 9;
+  const amount = pick([250, 500, 1000]);
+  const kinds = [
+    () => ({ title: `▲ ${t("Position en positif")} · $${symbol}`, body: `${tgSigned(pct)} % · ${tgSigned(amount * pct / 100, 2)} $` }),
+    () => ({ title: `⚡ ${t("Démarrage détecté")} · $${symbol}`, body: `${t("Score")} ${60 + Math.floor(Math.random() * 30)} · MCAP ${(40 + Math.random() * 400).toFixed(0)}K` }),
+    () => ({ title: `✅ ${t("Take-profit atteint")} · $${symbol}`, body: `${tgSigned(20 + Math.random() * 30)} % · ${tgSigned(amount * 0.3, 2)} $` }),
+    () => ({ title: `🟢 ${t("Bon point d'entrée")} · $${symbol}`, body: `${t("Signal qualifié")} · SL −22 % · TP +25 %` }),
+    () => ({ title: `🛑 ${t("Stop-loss déclenché")} · $${symbol}`, body: `−${(15 + Math.random() * 10).toFixed(1)} % · −${(amount * 0.2).toFixed(2)} $` }),
+    () => ({ title: `🤖 ${t("Bot : achat")} · $${symbol}`, body: `$${amount} · SL −25 % · TP +50 %` })
+  ];
+  return pick(kinds)();
+}
+const tgChat = $("#tg-chat");
+if (tgChat) {
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let visible = true;
+  new IntersectionObserver(entries => { visible = entries[0].isIntersecting; }).observe(tgChat);
+  const add = () => {
+    const alert = makeTelegramAlert();
+    const now = new Date();
+    const bubble = document.createElement("div");
+    bubble.className = "tg-msg";
+    const title = document.createElement("b"); title.textContent = alert.title;
+    const body = document.createElement("span"); body.textContent = alert.body;
+    const time = document.createElement("time"); time.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    bubble.append(title, body, time);
+    if (!still) bubble.classList.add("enter");
+    tgChat.append(bubble);
+    while (tgChat.children.length > 4) tgChat.firstElementChild.remove();
+  };
+  for (let index = 0; index < 3; index++) add();
+  const state = $("#tg-state");
+  const tick = () => {
+    if (!visible || document.hidden) { setTimeout(tick, 1500); return; }
+    state.textContent = t("écrit…"); state.classList.add("typing");
+    setTimeout(() => { state.textContent = "bot"; state.classList.remove("typing"); add(); setTimeout(tick, 3200 + Math.random() * 2200); }, still ? 0 : 1100);
+  };
+  setTimeout(tick, 3000);
+}
+
 /* ---- Legal modal ---- */
 const legal = $("#legal-modal");
 document.querySelectorAll("[data-open-legal]").forEach(button => button.addEventListener("click", () => { legal.hidden = false; }));

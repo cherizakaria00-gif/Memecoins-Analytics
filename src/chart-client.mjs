@@ -26,24 +26,53 @@ export function mapCandles(rows) {
     .filter((candle, index, all) => index === 0 || candle.time !== all[index - 1].time);
 }
 
-/** Fetches OHLCV candles for a Solana pool. Returns an empty list for pools GeckoTerminal does not index yet. */
-export async function getCandles(pool, timeframe, { fetchImpl = fetch, now = Date.now() } = {}) {
+const STALE_MAX_MS = 15 * 60_000;
+const BUDGET_PER_MINUTE = 24; // GeckoTerminal's free tier allows 30 calls / minute
+const BACKGROUND_BUDGET = 12; // background chip refreshes never use more than half of it, so the chart the user opens always gets through
+const inflight = new Map();
+const calls = [];
+let blockedUntil = 0;
+
+const recentCalls = now => { while (calls.length && now - calls[0] > 60_000) calls.shift(); return calls.length; };
+
+/**
+ * Fetches OHLCV candles for a Solana pool. Returns an empty list for pools GeckoTerminal does not index yet.
+ * Rate limits (HTTP 429) back off globally and fall back to the last candles we had, so the chart keeps working.
+ */
+export async function getCandles(pool, timeframe, { fetchImpl = fetch, now = Date.now(), background = false } = {}) {
   if (!isValidSolanaAddress(pool)) throw new TypeError("Invalid pool address");
   if (!isValidTimeframe(timeframe)) throw new TypeError("Invalid timeframe");
 
   const key = `${pool}:${timeframe}`;
   const cached = cache.get(key);
   if (cached && now - cached.at < CACHE_TTL_MS) return cached.candles;
+  const stale = () => {
+    if (cached && now - cached.at < STALE_MAX_MS) return cached.candles;
+    throw new Error("GeckoTerminal rate limit: retry shortly");
+  };
+  if (now < blockedUntil || recentCalls(now) >= (background ? BACKGROUND_BUDGET : BUDGET_PER_MINUTE)) return stale();
+  if (inflight.has(key)) return inflight.get(key);
 
   const { unit, aggregate } = TIMEFRAMES[timeframe];
   const url = `${API_ROOT}/${pool}/ohlcv/${unit}?aggregate=${aggregate}&limit=300&currency=usd`;
-  const response = await fetchImpl(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
-  if (response.status === 404) return [];
-  if (!response.ok) throw new Error(`GeckoTerminal responded with HTTP ${response.status}`);
-
-  const payload = await response.json();
-  const candles = mapCandles(payload?.data?.attributes?.ohlcv_list);
-  cache.set(key, { at: now, candles });
-  if (cache.size > 200) cache.delete(cache.keys().next().value);
-  return candles;
+  const job = (async () => {
+    calls.push(now);
+    const response = await fetchImpl(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
+    if (response.status === 404) return [];
+    if (response.status === 429) {
+      const wait = Number(response.headers?.get?.("retry-after"));
+      blockedUntil = now + Math.min(Math.max(Number.isFinite(wait) ? wait * 1000 : 20_000, 5_000), 60_000);
+      return stale();
+    }
+    if (!response.ok) { try { return stale(); } catch { throw new Error(`GeckoTerminal responded with HTTP ${response.status}`); } }
+    const payload = await response.json();
+    const candles = mapCandles(payload?.data?.attributes?.ohlcv_list);
+    cache.set(key, { at: now, candles });
+    if (cache.size > 200) cache.delete(cache.keys().next().value);
+    return candles;
+  })().finally(() => inflight.delete(key));
+  inflight.set(key, job);
+  return job;
 }
+
+export const _test = { reset() { cache.clear(); inflight.clear(); calls.length = 0; blockedUntil = 0; } };

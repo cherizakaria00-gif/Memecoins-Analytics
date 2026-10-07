@@ -1,4 +1,5 @@
-import { fetchNewestCoins } from "./pumpfun-client.mjs";
+import { buildSocials } from "./socials.mjs";
+import { fetchNewestCoins, pumpImageUrl } from "./pumpfun-client.mjs";
 import { fetchTokensByAddress } from "./dexscreener-client.mjs";
 import { evaluateQuality, qualityConfigFromEnv } from "./quality.mjs";
 
@@ -28,14 +29,15 @@ export async function getNewCoins({ fetchImpl = fetch, now = Date.now(), config 
   const tokens = coins.map(coin => {
     const listed = byMint.get(coin.mint);
     const pump = { graduated: coin.graduated, bondingProgress: coin.bondingProgress, replyCount: coin.replyCount, hasSocials: coin.hasSocials, url: coin.url };
+    const socials = buildSocials(listed?.socials, coin);
     // pump.fun is the reference for coins still on the bonding curve; DEX Screener once they migrated.
     const marketCap = (!coin.graduated && coin.usdMarketCap > 0 ? coin.usdMarketCap : listed?.marketCap) ?? (coin.usdMarketCap || null);
     const base = listed
-      ? { ...listed, pump }
+      ? { ...listed, imageUrl: listed.imageUrl ?? pumpImageUrl(coin.mint), pump, socials }
       : {
-        id: coin.mint, address: coin.mint, name: coin.name, symbol: coin.symbol, imageUrl: null, price: marketCap ? marketCap / 1_000_000_000 : 0,
+        id: coin.mint, address: coin.mint, name: coin.name, symbol: coin.symbol, imageUrl: pumpImageUrl(coin.mint), price: marketCap ? marketCap / 1_000_000_000 : 0,
         liquidity: coin.realSolReserves * 2 * solUsd, volume24h: coin.realSolReserves * solUsd || null, volumeEstimated: true, transactions: null, change: null, change5m: null, change6h: null, change24h: null,
-        marketCap, solPriceUsd: solUsd, pump, synthetic: true
+        marketCap, solPriceUsd: solUsd, pump, socials, synthetic: true
       };
     // DEX Screener reports a tiny or missing liquidity for a coin still on its bonding curve: use the SOL held by the curve if larger.
     if (!coin.graduated) base.liquidity = Math.max(base.liquidity ?? 0, coin.realSolReserves * 2 * solUsd);
