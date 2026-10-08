@@ -3,6 +3,8 @@
  * buys to make, using fixed rules set by the user: entry size as a % of the balance, fixed stop-loss / take-profit,
  * a cap on open bot positions, a cooldown per token and a daily loss limit that pauses the bot.
  */
+/** Base assets (SOL, USDC, USDT): never a bot target. */
+export const BASE_ASSETS = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]);
 export const BOT_SOURCES = ["both", "qualified", "early"];
 export const DEFAULT_BOT = { enabled: false, source: "both", minScore: 70, sizePct: 5, maxAmount: 500, stopLossPct: 25, takeProfitPct: 50, maxOpen: 3, dailyLossPct: 5, cooldownHours: 24, entryDipPct: 3, orderTimeoutMin: 30 };
 
@@ -87,7 +89,7 @@ export function pickEntries({ tokens, positions, history, balance, startBalance,
   const cooldown = config.cooldownHours * 3_600_000;
   const candidates = [];
   for (const token of tokens) {
-    if (held.has(token.id) || queued.has(token.id) || !(token.price > 0) || !(token.liquidity > 0)) continue;
+    if (BASE_ASSETS.has(token.id) || held.has(token.id) || queued.has(token.id) || !(token.price > 0) || !(token.liquidity > 0)) continue;
     if (now - (lastEntries[token.id] ?? 0) < cooldown) continue;
     const qualified = config.source !== "early" && isQualified(token);
     const early = config.source !== "qualified" && Boolean(token.early?.early);

@@ -1,5 +1,5 @@
 import { buildSocials } from "./socials.mjs";
-import { fetchNewestCoins, pumpImageUrl } from "./pumpfun-client.mjs";
+import { fetchHolderStats, fetchNewestCoins, pumpImageUrl } from "./pumpfun-client.mjs";
 import { fetchTokensByAddress } from "./dexscreener-client.mjs";
 import { evaluateQuality, qualityConfigFromEnv } from "./quality.mjs";
 
@@ -48,9 +48,29 @@ export async function getNewCoins({ fetchImpl = fetch, now = Date.now(), config 
     token.quality = evaluateQuality(token, config);
     return token;
   });
+  await attachHolderStats(tokens, { fetchImpl, now });
   const value = { tokens, passed: tokens.filter(token => token.quality.passes).length, updatedAt: now, minVolume: config.minVolume24h };
   cache = { at: now, value };
   return value;
+}
+
+const HOLDER_COINS = 25;
+const HOLDER_MAX_AGE_MIN = 90;
+const HOLDER_TTL_MS = 45_000;
+
+/**
+ * Holder security data (top 10, dev, snipers, insiders, bundlers) for the newest coins, the same numbers as the "Token Data & Security" panel.
+ * pump.fun coins always have their mint and freeze authorities revoked, so those two tiles are known without a lookup.
+ */
+async function attachHolderStats(tokens, { fetchImpl, now }) {
+  for (const token of tokens) token.authorities = token.pump ? { mintRevoked: true, freezeRevoked: true } : null;
+  const queue = tokens.filter(token => token.pump && token.ageMinutes <= HOLDER_MAX_AGE_MIN && token.price > 0).sort((first, second) => first.ageMinutes - second.ageMinutes).slice(0, HOLDER_COINS);
+  await Promise.all(Array.from({ length: 5 }, async () => {
+    while (queue.length) {
+      const token = queue.shift();
+      try { const stats = await fetchHolderStats(token.address, { fetchImpl, now, ttlMs: HOLDER_TTL_MS }); if (stats) token.holderStats = stats; } catch { /* holder data is optional */ }
+    }
+  }));
 }
 
 export const resetNewCoinsCache = () => { cache = null; };

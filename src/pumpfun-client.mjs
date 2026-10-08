@@ -106,13 +106,22 @@ export function recordHolderGrowth(mint, total, now) {
   return span >= MIN_GROWTH_SPAN_MS ? ((last.total - first.total) / span) * 600_000 : null;
 }
 
+const GROWTH_PCT_WINDOW_MS = 10 * 60_000;
+/** Holder count growth in % over the last 10 minutes this server has watched the token (null until two samples at least a minute apart exist). */
+export function holderGrowthPct(mint, now) {
+  const series = (holderHistory.get(mint) ?? []).filter(point => now - point.at <= GROWTH_PCT_WINDOW_MS);
+  if (series.length < 2) return null;
+  const first = series[0], last = series[series.length - 1];
+  return last.at - first.at >= 60_000 && first.total > 0 ? ((last.total - first.total) / first.total) * 100 : null;
+}
+
 const holderCache = new Map();
 const HOLDER_TTL_MS = 5 * 60_000;
 
 /** Holder stats for a pump.fun token (mints ending in "pump"). Null when unavailable. */
-export async function fetchHolderStats(mint, { fetchImpl = fetch, now = Date.now() } = {}) {
+export async function fetchHolderStats(mint, { fetchImpl = fetch, now = Date.now(), ttlMs = HOLDER_TTL_MS } = {}) {
   const cached = holderCache.get(mint);
-  if (cached && now - cached.at < HOLDER_TTL_MS) return cached.stats;
+  if (cached && now - cached.at < ttlMs) return cached.stats;
   const response = await fetchImpl(`${API_ROOT}/coins/top-holders/${mint}`, {
     headers: { accept: "application/json", "user-agent": "Mozilla/5.0 (compatible; PulsePaperScanner/0.1)" },
     signal: AbortSignal.timeout(8_000)
@@ -123,6 +132,7 @@ export async function fetchHolderStats(mint, { fetchImpl = fetch, now = Date.now
   }
   const stats = summarizeHolders(await response.json());
   stats.growth10m = recordHolderGrowth(mint, stats.totalHolders, now);
+  stats.growthPct = holderGrowthPct(mint, now);
   holderCache.set(mint, { at: now, stats });
   if (holderCache.size > 300) holderCache.delete(holderCache.keys().next().value);
   return stats;

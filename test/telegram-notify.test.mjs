@@ -3,7 +3,7 @@ import test from "node:test";
 import { openStore } from "../src/db.mjs";
 import { createTelegramNotifier } from "../src/telegram-notify.mjs";
 
-const TOKEN = "123456789:AAEmTLl60YH-EbQQ0W0fk7VbAzYwQdpMB7k";
+const TOKEN = "123456789:AAFakeTokenForTestsOnly_0123456789abcdef";
 
 function setup(updates = []) {
   const store = openStore(":memory:");

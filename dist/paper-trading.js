@@ -120,7 +120,7 @@ export function sellFraction(position, token, fraction, { reason = "manual", now
     trade: {
       id: `${position.id}-${now}`, positionId: position.id, tokenId: position.tokenId, tokenName: position.tokenName, tokenSymbol: position.tokenSymbol,
       amount: cost, proceeds, pnl, pnlPct: pnl / cost * 100, reason, fraction: share, impactPct: impact * 100, presetId: position.presetId ?? null, exitLiquidity: liquidity ?? null,
-      entryPrice: position.entryPrice, exitPrice: price, openedAt: position.openedAt, closedAt: now, auto: Boolean(position.auto)
+      entryPrice: position.entryPrice, exitPrice: price, openedAt: position.openedAt, closedAt: now, auto: Boolean(position.auto), hr: Boolean(position.hr), ai: Boolean(position.ai), call: Boolean(position.call)
     }
   };
 }

@@ -47,3 +47,14 @@ test("coins without a DEX Screener logo use pump.fun's own image CDN, only for v
   assert.equal(pumpImageUrl("not a mint/../../x"), null);
   assert.equal(pumpImageUrl(undefined), null);
 });
+
+test("holder growth in percent over the watched window", async () => {
+  const { holderGrowthPct, recordHolderGrowth } = await import("../src/pumpfun-client.mjs");
+  const t0 = 5_000_000;
+  assert.equal(holderGrowthPct("pct1", t0), null);
+  recordHolderGrowth("pct1", 100, t0);
+  assert.equal(holderGrowthPct("pct1", t0), null);
+  recordHolderGrowth("pct1", 140, t0 + 90_000);
+  assert.equal(Math.round(holderGrowthPct("pct1", t0 + 90_000)), 40);
+  assert.equal(holderGrowthPct("pct1", t0 + 11 * 60_000), null); // too old: out of the 10-minute window
+});

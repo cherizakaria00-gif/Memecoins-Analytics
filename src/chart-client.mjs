@@ -1,3 +1,4 @@
+import { coingeckoOnchain } from "./coingecko.mjs";
 import { isValidSolanaAddress } from "./wallet-balance.mjs";
 
 const API_ROOT = "https://api.geckoterminal.com/api/v2/networks/solana/pools";
@@ -29,9 +30,11 @@ export function mapCandles(rows) {
 const STALE_MAX_MS = 15 * 60_000;
 const BUDGET_PER_MINUTE = 24; // GeckoTerminal's free tier allows 30 calls / minute
 const BACKGROUND_BUDGET = 12; // background chip refreshes never use more than half of it, so the chart the user opens always gets through
+const MAX_WAIT_MS = 12_000;
 const inflight = new Map();
 const calls = [];
 let blockedUntil = 0;
+let keyDisabledUntil = 0;
 
 const recentCalls = now => { while (calls.length && now - calls[0] > 60_000) calls.shift(); return calls.length; };
 
@@ -39,7 +42,7 @@ const recentCalls = now => { while (calls.length && now - calls[0] > 60_000) cal
  * Fetches OHLCV candles for a Solana pool. Returns an empty list for pools GeckoTerminal does not index yet.
  * Rate limits (HTTP 429) back off globally and fall back to the last candles we had, so the chart keeps working.
  */
-export async function getCandles(pool, timeframe, { fetchImpl = fetch, now = Date.now(), background = false } = {}) {
+export async function getCandles(pool, timeframe, { fetchImpl = fetch, now = Date.now(), background = false, env = process.env, sleepImpl = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
   if (!isValidSolanaAddress(pool)) throw new TypeError("Invalid pool address");
   if (!isValidTimeframe(timeframe)) throw new TypeError("Invalid timeframe");
 
@@ -50,14 +53,34 @@ export async function getCandles(pool, timeframe, { fetchImpl = fetch, now = Dat
     if (cached && now - cached.at < STALE_MAX_MS) return cached.candles;
     throw new Error("GeckoTerminal rate limit: retry shortly");
   };
-  if (now < blockedUntil || recentCalls(now) >= (background ? BACKGROUND_BUDGET : BUDGET_PER_MINUTE)) return stale();
+  const waitMs = () => {
+    if (now < blockedUntil) return blockedUntil - now;
+    const budget = background ? BACKGROUND_BUDGET : BUDGET_PER_MINUTE;
+    return recentCalls(now) >= budget ? calls[calls.length - budget] + 60_000 - now : 0;
+  };
+  if (waitMs() > 0) {
+    // A chart the user is looking at waits a few seconds for the limit to clear instead of failing; background refreshes just use what we have.
+    const wait = waitMs();
+    if (background || !(wait <= MAX_WAIT_MS)) return stale();
+    if (cached && now - cached.at < STALE_MAX_MS) return cached.candles;
+    await sleepImpl(wait + 50);
+    now += wait + 50;
+    if (now < blockedUntil || recentCalls(now) >= BUDGET_PER_MINUTE) return stale();
+  }
   if (inflight.has(key)) return inflight.get(key);
 
   const { unit, aggregate } = TIMEFRAMES[timeframe];
-  const url = `${API_ROOT}/${pool}/ohlcv/${unit}?aggregate=${aggregate}&limit=300&currency=usd`;
+  const query = `ohlcv/${unit}?aggregate=${aggregate}&limit=300&currency=usd`;
+  const keyed = now >= keyDisabledUntil ? coingeckoOnchain(env) : null;
   const job = (async () => {
     calls.push(now);
-    const response = await fetchImpl(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
+    let response;
+    if (keyed) {
+      try { response = await fetchImpl(`${keyed.root}/pools/${pool}/${query}`, { headers: { accept: "application/json", ...keyed.headers }, signal: AbortSignal.timeout(8_000) }); } catch { response = null; }
+      if (response && (response.status === 401 || response.status === 403)) { keyDisabledUntil = now + 10 * 60_000; response = null; } // bad key: use the public API for a while
+      else if (response && response.status === 429) response = null; // key bucket exhausted: the public one is separate
+    }
+    if (!response) response = await fetchImpl(`${API_ROOT}/${pool}/${query}`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(8_000) });
     if (response.status === 404) return [];
     if (response.status === 429) {
       const wait = Number(response.headers?.get?.("retry-after"));
@@ -75,4 +98,4 @@ export async function getCandles(pool, timeframe, { fetchImpl = fetch, now = Dat
   return job;
 }
 
-export const _test = { reset() { cache.clear(); inflight.clear(); calls.length = 0; blockedUntil = 0; } };
+export const _test = { reset() { cache.clear(); inflight.clear(); calls.length = 0; blockedUntil = 0; keyDisabledUntil = 0; } };

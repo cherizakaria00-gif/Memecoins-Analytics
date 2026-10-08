@@ -71,6 +71,21 @@ const SCHEMA = `
   DROP TABLE IF EXISTS telegram_bots;
   DROP TABLE IF EXISTS platform_settings;
   CREATE TABLE IF NOT EXISTS telegram_links (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, chat_id TEXT NOT NULL, created_at INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS ai_samples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, mint TEXT NOT NULL, taken_at INTEGER NOT NULL, source TEXT NOT NULL, features TEXT NOT NULL,
+    entry_price REAL NOT NULL, max_price REAL NOT NULL, min_price REAL NOT NULL, last_seen INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open', resolved_at INTEGER, return_pct REAL
+  );
+  CREATE INDEX IF NOT EXISTS ai_samples_status ON ai_samples(status, taken_at);
+  CREATE TABLE IF NOT EXISTS ai_model (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL, trained_at INTEGER NOT NULL);
+  CREATE TABLE IF NOT EXISTS kv (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS channel_calls (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, chat_id TEXT NOT NULL, chat_title TEXT, chat_username TEXT, message_id INTEGER NOT NULL, at INTEGER NOT NULL,
+    address TEXT NOT NULL, symbol TEXT, name TEXT, kind TEXT NOT NULL, price REAL, market_cap REAL, liquidity REAL, text TEXT,
+    UNIQUE (chat_id, message_id, address)
+  );
+  CREATE INDEX IF NOT EXISTS channel_calls_at ON channel_calls(at);
+  CREATE INDEX IF NOT EXISTS channel_calls_address ON channel_calls(address, at);
   CREATE INDEX IF NOT EXISTS crypto_user ON crypto_requests(user_id);
   CREATE INDEX IF NOT EXISTS crypto_status ON crypto_requests(status);
   CREATE TABLE IF NOT EXISTS processed_events (
@@ -85,6 +100,7 @@ export function openStore(file = "data/pulse.db") {
   const db = new DatabaseSync(file);
   db.exec("PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON;");
   db.exec(SCHEMA);
+  for (const column of ["sl_mcap", "tp_mcap"]) if (!db.prepare("PRAGMA table_info(channel_calls)").all().some(item => item.name === column)) db.exec(`ALTER TABLE channel_calls ADD COLUMN ${column} REAL`);
   if (!db.prepare("PRAGMA table_info(subscriptions)").all().some(column => column.name === "provider")) db.exec("ALTER TABLE subscriptions ADD COLUMN provider TEXT");
 
   const statements = {
@@ -123,6 +139,20 @@ export function openStore(file = "data/pulse.db") {
     tgLink: db.prepare("SELECT * FROM telegram_links WHERE user_id = ?"),
     tgSaveLink: db.prepare("INSERT INTO telegram_links (user_id, chat_id, created_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET chat_id = excluded.chat_id"),
     tgDeleteLink: db.prepare("DELETE FROM telegram_links WHERE user_id = ?"),
+    aiAdd: db.prepare("INSERT INTO ai_samples (mint, taken_at, source, features, entry_price, max_price, min_price, last_seen) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+    aiOpen: db.prepare("SELECT id, mint, taken_at, entry_price, max_price, min_price, last_seen FROM ai_samples WHERE status = 'open'"),
+    aiTouch: db.prepare("UPDATE ai_samples SET max_price = ?, min_price = ?, last_seen = ? WHERE id = ?"),
+    aiResolve: db.prepare("UPDATE ai_samples SET status = ?, resolved_at = ?, return_pct = ?, max_price = ?, min_price = ? WHERE id = ?"),
+    aiLabeled: db.prepare("SELECT taken_at, features, status FROM ai_samples WHERE status IN ('win', 'loss') ORDER BY taken_at DESC LIMIT ?"),
+    aiCounts: db.prepare("SELECT status, COUNT(*) AS count FROM ai_samples GROUP BY status"),
+    aiPrune: db.prepare("DELETE FROM ai_samples WHERE status != 'open' AND id NOT IN (SELECT id FROM ai_samples WHERE status != 'open' ORDER BY taken_at DESC LIMIT ?)"),
+    aiSaveModel: db.prepare("INSERT INTO ai_model (id, json, trained_at) VALUES (1, ?, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json, trained_at = excluded.trained_at"),
+    aiLoadModel: db.prepare("SELECT json, trained_at FROM ai_model WHERE id = 1"),
+    kvGet: db.prepare("SELECT value FROM kv WHERE key = ?"),
+    kvSet: db.prepare("INSERT INTO kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"),
+    channelInsert: db.prepare("INSERT OR IGNORE INTO channel_calls (chat_id, chat_title, chat_username, message_id, at, address, symbol, name, kind, price, market_cap, liquidity, text, sl_mcap, tp_mcap) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+    channelRecent: db.prepare("SELECT * FROM channel_calls WHERE at >= ? AND kind != 'update' ORDER BY at DESC, id DESC LIMIT ?"),
+    channelSeen: db.prepare("SELECT 1 AS seen FROM channel_calls WHERE address = ? AND at >= ? AND kind != 'update' LIMIT 1"),
     upsertState: db.prepare("INSERT INTO user_state (user_id, data, updated_at) VALUES (?, ?, ?) ON CONFLICT(user_id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at"),
     insertEvent: db.prepare("INSERT OR IGNORE INTO processed_events (id, processed_at) VALUES (?, ?)"),
     insertPayment: db.prepare("INSERT OR IGNORE INTO payments (id, customer_id, amount_cents, currency, paid_at) VALUES (?, ?, ?, ?, ?)"),
@@ -150,6 +180,20 @@ export function openStore(file = "data/pulse.db") {
     telegramLink: userId => statements.tgLink.get(userId) ?? null,
     saveTelegramLink: ({ userId, chatId, now }) => { statements.tgSaveLink.run(userId, chatId, now); },
     deleteTelegramLink: userId => { statements.tgDeleteLink.run(userId); },
+    aiAdd: ({ mint, takenAt, source, features, price }) => { statements.aiAdd.run(mint, takenAt, source, features, price, price, price, takenAt); },
+    aiOpen: () => statements.aiOpen.all(),
+    aiTouch: (id, max, min, at) => { statements.aiTouch.run(max, min, at, id); },
+    aiResolve: (id, status, at, returnPct, max, min) => { statements.aiResolve.run(status, at, returnPct, max, min, id); },
+    aiLabeled: limit => statements.aiLabeled.all(limit),
+    aiCounts: () => { const counts = { open: 0, win: 0, loss: 0, lost: 0 }; for (const row of statements.aiCounts.all()) counts[row.status] = row.count; return counts; },
+    aiPrune: keep => { statements.aiPrune.run(keep); },
+    aiSaveModel: (json, trainedAt) => { statements.aiSaveModel.run(json, trainedAt); },
+    aiLoadModel: () => statements.aiLoadModel.get() ?? null,
+    kvGet: key => statements.kvGet.get(key)?.value ?? null,
+    kvSet: (key, value) => { statements.kvSet.run(key, String(value)); },
+    channelInsert: row => statements.channelInsert.run(row.chatId, row.chatTitle ?? null, row.chatUsername ?? null, row.messageId, row.at, row.address, row.symbol ?? null, row.name ?? null, row.kind, row.price ?? null, row.marketCap ?? null, row.liquidity ?? null, row.text ?? null, row.slMcap ?? null, row.tpMcap ?? null).changes > 0,
+    channelRecent: (since, limit) => statements.channelRecent.all(since, limit),
+    channelSeen: (address, since) => Boolean(statements.channelSeen.get(address, since)),
     saveSubscription: ({ userId, customerId = null, subscriptionId = null, status, currentPeriodEnd = null, cancelAtPeriodEnd = false, now, provider = null }) => {
       statements.upsertSubscription.run(userId, customerId, subscriptionId, status, currentPeriodEnd, cancelAtPeriodEnd ? 1 : 0, now, provider);
     },

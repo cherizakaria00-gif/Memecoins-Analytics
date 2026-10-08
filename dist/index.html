@@ -245,6 +245,21 @@
         <div class="legal-body" id="live-confirm-body"></div>
       </section>
     </div>
+    <div class="legal-modal" id="mobile-modal" hidden>
+      <button class="wallet-modal-backdrop" type="button" data-close-mobile aria-label="Fermer"></button>
+      <section class="wallet-dialog legal-dialog" role="dialog" aria-modal="true" aria-labelledby="mobile-title">
+        <div class="wallet-dialog-head"><div><p class="eyebrow">TELEGRAM</p><h2 id="mobile-title">Alertes sur mobile</h2></div><button class="modal-close" type="button" data-close-mobile aria-label="Fermer">×</button></div>
+        <div class="legal-body">
+          <p class="signals-help">Reçois sur ton téléphone les mêmes alertes que dans Pulse : position qui passe en positif, ordres du bot, signaux qualifiés, démarrages et bons points d'entrée. Les réglages des types d'alertes se trouvent dans la cloche de notifications.</p>
+          <div class="tg-link" id="tg-link" hidden>
+            <label><input type="checkbox" id="tg-enabled" /> Envoyer mes alertes sur Telegram</label>
+            <div class="tg-link-body" id="tg-link-body"></div>
+          </div>
+          <p class="auth-error" id="tg-unavailable" hidden>Les alertes Telegram ne sont pas disponibles sur ce serveur : le bot Telegram n'est pas configuré.</p>
+          <p class="results-disclaimer">Liaison privée : tu envoies un code au bot Pulse, qui ne lit ni tes discussions ni tes groupes. Tu peux délier à tout moment. Les alertes partent quand Pulse est ouvert dans un onglet de ton navigateur.</p>
+        </div>
+      </section>
+    </div>
     <div class="legal-modal" id="legal-modal" hidden>
       <button class="wallet-modal-backdrop" type="button" data-close-legal aria-label="Fermer"></button>
       <section class="wallet-dialog legal-dialog" role="dialog" aria-modal="true" aria-labelledby="legal-title">
@@ -266,20 +281,34 @@
     </div>
     <div class="app-shell">
       <div class="live-banner" id="live-banner" hidden><strong>● MODE LIVE</strong><span>Les ordres sont réels : chaque transaction est signée par ton wallet et déplace de vrais fonds.</span><b id="live-banner-balance"></b></div>
+      <aside class="sidebar" id="sidebar" aria-label="Menu">
+        <a class="sidebar-logo" href="#" aria-label="Pulse, accueil"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><strong class="nl">PULSE</strong></a>
+        <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-label="Agrandir ou réduire le menu" aria-expanded="false"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m6 17 5-5-5-5M13 17l5-5-5-5"/></svg></button>
+        <nav class="main-nav" aria-label="Navigation principale">
+          <button class="nav-item active" type="button" data-view-tab="positions" title="Dashboard"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span class="nl">Dashboard</span><span id="position-count">0</span></button>
+          <button class="nav-item" type="button" data-view-tab="scanner" title="Scanner"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"/></svg><span class="nl">Scanner</span></button>
+          <button class="nav-item" type="button" data-view-tab="newcoins" title="Nouveaux"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8Z"/><path d="M19 17v4M17 19h4"/></svg><span class="nl">Nouveaux</span><span id="new-count">0</span></button>
+          <button class="nav-item" type="button" data-view-tab="signals" title="Signaux qualifiés"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg><span class="nl">Signaux qualifiés</span><span id="signals-count">0</span><span class="early-count" id="early-count" hidden>⚡0</span></button>
+          <button class="nav-item" type="button" data-view-tab="standings" title="Standings"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/></svg><span class="nl">Standings</span></button>
+          <hr class="nav-sep" />
+          <button class="nav-item" type="button" data-view-tab="history" title="Historique"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="nl">Historique</span><span id="history-count">0</span></button>
+          <button class="nav-item" type="button" data-view-tab="wallet" title="Wallet"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5h14a2 2 0 0 1 2 2V18H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h11"/><path d="M16 12h4v3h-4a1.5 1.5 0 0 1 0-3Z"/></svg><span class="nl">Wallet</span></button>
+          <button class="nav-item" type="button" data-view-tab="aiagent" title="AI Agent"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3 2 2 0 0 0 3-1.7V5.7A2 2 0 0 0 9 4Z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3 2 2 0 0 1-3-1.7"/></svg><span class="nl">AI Agent</span></button>
+          <button class="nav-item" type="button" data-view-tab="aibot" title="AI Bot Trade"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="16" height="11" rx="3"/><path d="M12 8V4M9 13v1M15 13v1M2 13v2M22 13v2"/></svg><span class="nl">AI Bot Trade</span><span class="bot-nav-dot" id="bot-nav-dot" hidden></span></button>
+          <button class="nav-item admin-tab" type="button" data-view-tab="admin" id="admin-tab" hidden title="Admin"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6Z"/><path d="m9 12 2 2 4-4"/></svg><span class="nl">Admin</span><span class="nav-badge" id="admin-badge" hidden></span></button>
+        </nav>
+        <button class="sidebar-add" id="sidebar-add" type="button" title="Chercher ou ajouter un coin" aria-label="Chercher ou ajouter un coin"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg><span class="nl">Chercher un coin</span></button>
+        <div class="sidebar-bottom">
+          <button class="nav-item side-util" id="side-help" type="button" title="Conditions et risques"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/><path d="M19 20a4 4 0 0 1-4 2h-2"/></svg><span class="nl">Aide et risques</span></button>
+          <button class="nav-item side-util" id="side-settings" type="button" title="Réglages des alertes"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4v16M12 4v16M19 4v16"/><rect x="3" y="8" width="4" height="4" rx="1"/><rect x="10" y="14" width="4" height="4" rx="1"/><rect x="17" y="6" width="4" height="4" rx="1"/></svg><span class="nl">Réglages des alertes</span></button>
+          <button class="nav-item side-util" id="side-mobile" type="button" title="Alertes sur mobile (Telegram)"><svg class="ni" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg><span class="nl">Alertes mobile</span></button>
+        </div>
+      </aside>
       <header class="topbar">
         <a class="brand" href="#" aria-label="Pulse, accueil">
           <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <span>PULSE</span>
         </a>
-        <nav class="main-nav" aria-label="Navigation principale">
-          <button class="nav-item active" type="button" data-view-tab="positions">Dashboard <span id="position-count">0</span></button>
-          <button class="nav-item" type="button" data-view-tab="history">Historique <span id="history-count">0</span></button>
-          <button class="nav-item" type="button" data-view-tab="scanner">Scanner</button>
-          <button class="nav-item" type="button" data-view-tab="newcoins">Nouveaux <span id="new-count">0</span></button>
-          <button class="nav-item" type="button" data-view-tab="signals">Signaux qualifiés <span id="signals-count">0</span><span class="early-count" id="early-count" hidden>⚡0</span></button>
-          <button class="nav-item" type="button" data-view-tab="standings">Standings</button>
-          <button class="nav-item admin-tab" type="button" data-view-tab="admin" id="admin-tab" hidden>Admin <span class="nav-badge" id="admin-badge" hidden></span></button>
-        </nav>
         <div class="header-actions">
           <div class="mode-switch" id="mode-switch" role="group" aria-label="Mode de trading">
             <button type="button" class="active" data-mode="test" title="Portefeuille de simulation : aucun argent réel">TEST</button>
@@ -312,10 +341,6 @@
                 <label><input type="checkbox" id="notif-profit" checked /> Position qui passe en positif</label>
                 <label><input type="checkbox" id="notif-new" /> Nouveaux coins qui passent le filtre</label>
                 <label><input type="checkbox" id="notif-traders" checked /> Trades des traders suivis</label>
-                <div class="tg-link" id="tg-link" hidden>
-                  <label><input type="checkbox" id="tg-enabled" /> Envoyer mes alertes sur Telegram</label>
-                  <div class="tg-link-body" id="tg-link-body"></div>
-                </div>
                 <label class="notif-min">Montant minimum
                   <select id="notif-min-trade"><option value="0">Tous</option><option value="100">≥ 100 $</option><option value="500">≥ 500 $</option><option value="1000">≥ 1 000 $</option><option value="5000">≥ 5 000 $</option><option value="25000">≥ 25 000 $</option></select>
                 </label>
@@ -444,6 +469,29 @@
           <div class="signal-cards" id="watch-cards"></div>
         </section>
 
+        <section class="wallet-analysis-view" id="wallet-analysis" data-view="wallet" hidden aria-labelledby="wa-title">
+          <div class="signals-head">
+            <div><p class="eyebrow">ANALYSE DU WALLET <span id="wa-status"></span></p><h1 id="wa-title">Wallet analyzer</h1></div>
+            <p class="signals-help">Colle l'adresse d'un wallet Solana : Pulse relit ses dernières transactions publiques et reconstitue ses trades. Tu vois son gain réalisé et non réalisé, son taux de réussite, la rapidité de ses entrées, et surtout la part du gain qui vient de tokens reçus gratuitement (équipe, airdrop), qui n'est pas du trading. Données on-chain uniquement : un classement ou un gain affiché ailleurs ne prouve pas une méthode.</p>
+          </div>
+          <form class="calls-add" id="wa-form"><input id="wa-input" type="text" placeholder="Adresse du wallet Solana" autocomplete="off" spellcheck="false" aria-label="Adresse du wallet" /><button class="text-button" id="wa-submit" type="submit">Analyser</button></form>
+          <div id="wa-result" hidden>
+            <div class="kpi-grid" id="wa-kpis"></div>
+            <p class="signals-help" id="wa-coverage"></p>
+            <p class="wa-note warn" id="wa-unknown" hidden></p>
+            <div id="wa-notes"></div>
+            <div class="table-wrap"><table><thead><tr><th>Token</th><th>Statut</th><th>Acheté</th><th>Vendu</th><th>Réalisé</th><th>Non réalisé</th><th>Entrée</th><th>Détention</th></tr></thead><tbody id="wa-body"></tbody></table></div>
+            <div class="empty-state" id="wa-empty" hidden>Aucun swap exploitable trouvé dans les transactions analysées.</div>
+          </div>
+          <section class="wa-leaders" aria-labelledby="wa-leaders-title">
+            <div class="wa-leaders-head">
+              <div><h2 id="wa-leaders-title">Wallets à suivre <small id="wa-leaders-status"></small></h2><p class="signals-help">Meilleurs traders du classement pump.fun (gain en dollars, tokens pump.fun uniquement). Copie l'adresse, analyse-la ici pour voir si le gain est réel, ou clique sur « + Suivre » : tu seras alerté quand ce trader achète ou vend.</p></div>
+              <div class="period-tabs" id="wa-period" role="tablist"><button type="button" data-period="daily">24 h</button><button type="button" data-period="weekly" class="active">7 j</button><button type="button" data-period="monthly">30 j</button></div>
+            </div>
+            <div class="wa-leader-list" id="wa-leaders"></div>
+          </section>
+        </section>
+
         <section class="standings" id="standings" data-view="standings" hidden aria-labelledby="standings-title">
           <div class="standings-head">
             <div>
@@ -504,17 +552,19 @@
               <label class="quality-toggle" title="Cache les tokens sous les minimums : nouvelle paire ≥ 50 $ de volume, dernière ligne droite ≥ 10 K$ de market cap, migré ≥ 30 K$ de market cap, et au moins 0,5 SOL de frais payés">
                 <input type="checkbox" id="quality-filter" checked /> Filtre Pulse <span id="quality-count"></span>
               </label>
-              <div class="search-wrap">
-                <label class="search-field">
-                <span class="sr-only">Rechercher un token</span>
-                <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
-                <input id="search" type="search" placeholder="Nom ou symbole" autocomplete="off" />
-              </label>
-                <div class="search-results" id="search-results" hidden></div>
+              <div class="search-group">
+                <div class="search-wrap">
+                  <label class="search-field">
+                  <span class="sr-only">Rechercher un token</span>
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg>
+                  <input id="search" type="search" placeholder="Nom ou symbole" autocomplete="off" />
+                </label>
+                  <div class="search-results" id="search-results" hidden></div>
+                </div>
+                <button class="refresh-btn" id="refresh" type="button" aria-label="Relancer le scan" title="Relancer le scan">
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg>
+                </button>
               </div>
-              <button class="refresh-btn" id="refresh" type="button" aria-label="Relancer le scan" title="Relancer le scan">
-                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"></path><path d="M20 4v7h-7"></path></svg>
-              </button>
             </div>
           </div>
 
@@ -547,20 +597,29 @@
           </div>
         </section>
 
-        <section class="positions dashboard" id="positions" data-view="positions" aria-labelledby="positions-title">
-          <div class="section-title">
-            <div><p class="eyebrow">PORTEFEUILLE VIRTUEL <span class="live-badge" id="dash-live">● LIVE</span></p><h2 id="positions-title">Dashboard</h2></div>
-            <button id="reset-wallet" class="text-button" type="button">Réinitialiser</button>
+        <section class="aiagent-view" id="aiagent-view" data-view="aiagent" hidden aria-labelledby="aiagent-title">
+          <div class="signals-head">
+            <div><p class="eyebrow">APPRENTISSAGE AUTOMATIQUE <span id="ai-status"></span></p><h1 id="aiagent-title">AI Agent</h1></div>
+            <p class="signals-help">L'agent observe chaque coin que Pulse voit, note ses caractéristiques (âge, liquidité, holders, snipers, croissance des holders, réseaux sociaux…), puis regarde la suite : le coin a-t-il pris +20 % avant de perdre 12 % dans les 2 heures ? Il apprend ce que les gagnants avaient en commun, vérifie son modèle sur des coins qu'il n'a jamais vus, et donne alors à chaque nouveau coin une probabilité de ressembler aux gagnants du passé. Ce n'est pas une garantie : les marchés changent et un modèle peut cesser de marcher.</p>
           </div>
-          <section class="live-only live-dashboard" id="live-dashboard" aria-label="Portefeuille réel">
-            <div class="kpi-grid" id="live-kpis"></div>
-            <div class="dash-head list-head"><strong>Positions de ton wallet</strong><span><button class="text-button" id="live-refresh" type="button">Actualiser</button> <span id="live-meta"></span></span></div>
-            <div class="position-cards" id="live-positions"></div>
-            <div class="dash-head list-head"><strong>Ordres récents</strong></div>
-            <div class="history-list" id="live-orders"></div>
-            <p class="live-note">Les stop-loss et take-profit du mode live sont des <b>alertes</b> : sans ta signature, aucun ordre ne peut être envoyé. Quand une limite est atteinte, tu es notifié et le bouton « Vendre » clignote.</p>
-          </section>
-          <div class="kpi-grid paper-only" id="kpi-grid"></div>
+          <div class="kpi-grid" id="ai-kpis"></div>
+          <div class="ai-progress" id="ai-progress" hidden><div><i id="ai-progress-bar"></i></div><small id="ai-progress-text"></small></div>
+          <p class="wa-note warn" id="ai-note" hidden></p>
+          <h2 class="watch-title">Zone de market cap <small>cible les coins de la taille que tu veux : la zone 1M est celle des coins « qualifiés » installés</small></h2>
+          <div class="ai-bands" id="ai-bands" role="group" aria-label="Zone de market cap"></div>
+          <h2 class="watch-title">Meilleures entrées maintenant <small id="ai-picks-status"></small></h2>
+          <div class="table-wrap"><table><thead><tr><th>Coin</th><th>Probabilité</th><th>Pourquoi</th><th>Market cap</th><th>Liquidité</th><th>Âge</th></tr></thead><tbody id="ai-picks"></tbody></table></div>
+          <div class="empty-state" id="ai-picks-empty" hidden></div>
+          <h2 class="watch-title">Ce que l'agent a appris <small>poids du modèle : vert = favorise la victoire, rouge = la pénalise</small></h2>
+          <div class="ai-weights" id="ai-weights"></div>
+        </section>
+
+        <section class="aibot-view" id="aibot-view" data-view="aibot" hidden aria-labelledby="aibot-title">
+          <div class="signals-head">
+            <div><p class="eyebrow">TRADING AUTOMATIQUE · MODE TEST</p><h1 id="aibot-title">AI Bot Trade</h1></div>
+            <p class="signals-help">Le bot achète tout seul les signaux qui respectent tes règles (score, taille d'entrée, stop-loss, take-profit, repli) et sort au stop-loss ou au take-profit. Il trade avec le portefeuille de simulation : retrouve ses positions dans le Dashboard.</p>
+          </div>
+          <div class="live-only live-notice"><p class="signals-help">Le bot de trading automatique fonctionne en mode TEST (simulation). En mode LIVE, chaque ordre doit être signé par toi : repasse en TEST pour utiliser le bot.</p></div>
           <section class="bot-card paper-only" id="bot-card" aria-labelledby="bot-title">
             <div class="bot-head">
               <div><p class="eyebrow">TRADING AUTOMATIQUE · MODE TEST</p><h3 id="bot-title">Bot de trade automatique</h3></div>
@@ -585,6 +644,102 @@
             <div class="bot-log" id="bot-log"></div>
             <p class="bot-warning">Le bot n'améliore pas les signaux : il applique mécaniquement les mêmes règles. Regarde la fiabilité des signaux dans le Scanner (taux de démarrages à +50 % et à −25 %) avant de lui faire confiance, et garde la perte max par jour basse. Une simulation ne garantit rien en réel.</p>
           </section>
+
+          <section class="bot-card hr-card paper-only" id="hr-card" aria-labelledby="hr-title">
+            <div class="bot-head">
+              <div><p class="eyebrow">RISQUE ÉLEVÉ · MODE TEST</p><h3 id="hr-title">High Risk Bot · News Token</h3></div>
+              <label class="switch"><input id="hr-enabled" type="checkbox" /><span class="switch-track" aria-hidden="true"></span><span id="hr-state">Désactivé</span></label>
+            </div>
+            <p class="bot-intro">Ce bot achète tout seul les tout nouveaux coins de pump.fun dès qu'ils respectent tes limites, puis les revend dès que la position gagne le take-profit fixé (5 % par défaut, frais compris). Ticket fixe, stop-loss serré : c'est un pari rapide sur les premières minutes d'un coin.</p>
+            <div class="bot-grid">
+              <label>Montant par trade ($)<input id="hr-amount" type="number" min="10" max="5000" step="10" /></label>
+              <label>Take-profit (%)<input id="hr-takeProfitPct" type="number" min="1" max="100" step="1" title="Sortie automatique quand la position gagne ce pourcentage, frais compris." /></label>
+              <label>Stop-loss (%)<input id="hr-stopLossPct" type="number" min="1" max="90" step="1" /></label>
+              <label>Âge max du coin (min)<input id="hr-maxAgeMin" type="number" min="1" max="240" step="1" /></label>
+              <label>Market cap min ($)<input id="hr-minMcap" type="number" min="0" step="500" /></label>
+              <label>Market cap max ($)<input id="hr-maxMcap" type="number" min="1000" step="1000" /></label>
+              <label>Volume 24 h min ($)<input id="hr-minVolume" type="number" min="0" step="500" /></label>
+              <label>Holders : croissance min (%)<input id="hr-minHolderGrowthPct" type="number" min="0" max="1000" step="5" title="Le nombre de holders doit avoir augmenté d'au moins ce pourcentage sur les 10 dernières minutes. 0 = pas d'exigence." /></label>
+              <label>Positions max<input id="hr-maxOpen" type="number" min="1" max="20" step="1" /></label>
+              <label>Perte max par jour (% du capital)<input id="hr-dailyLossPct" type="number" min="0.5" max="100" step="0.5" /></label>
+              <label>Pas de ré-entrée avant (h)<input id="hr-cooldownHours" type="number" min="0" max="168" step="1" /></label>
+            </div>
+            <div class="hr-checks">
+              <label class="bot-check"><input id="hr-requireSecurity" type="checkbox" /> <span>Sécurité stricte : top 10 &lt; 25 %, dev / snipers / insiders / bundles à 0 %, mint &amp; freeze révoqués, frais ≥ 0,5 SOL</span></label>
+              <label class="bot-check"><input id="hr-requireFilter" type="checkbox" /> <span>Exiger le Filtre Pulse complet (liquidité, frais, âge…)</span></label>
+              <label class="bot-check"><input id="hr-requireSocials" type="checkbox" /> <span>Exiger au moins un réseau social déclaré</span></label>
+            </div>
+            <div class="bot-status" id="hr-status"></div>
+            <div class="bot-log" id="hr-log"></div>
+            <p class="bot-warning">Risque très élevé : un coin neuf peut perdre la moitié de sa valeur en une minute ou ne jamais atteindre +5 %. Les prix des coins pas encore listés sur DexScreener sont estimés depuis pump.fun. Une simulation ne garantit rien en réel : garde un ticket petit et une perte maximale par jour basse.</p>
+          </section>
+
+          <section class="bot-card ai-card paper-only" id="ai-card" aria-labelledby="ai-title">
+            <div class="bot-head">
+              <div><p class="eyebrow">AI AGENT · MODE TEST</p><h3 id="ai-title">AI Agent Bot</h3></div>
+              <label class="switch"><input id="ai-enabled" type="checkbox" /><span class="switch-track" aria-hidden="true"></span><span id="ai-state">Désactivé</span></label>
+            </div>
+            <p class="bot-intro">Ce bot achète les coins que l'AI Agent juge les plus proches des gagnants du passé, uniquement quand son modèle est validé. Les sorties reprennent la définition qu'il a apprise : take-profit à +20 % et stop-loss à −12 % par défaut. Tant que le modèle apprend, le bot n'achète rien.</p>
+            <div class="bot-grid">
+              <label>Probabilité minimale (%)<input id="ai-minProb" type="number" min="5" max="95" step="1" title="L'agent n'achète que les coins dont la probabilité de victoire estimée atteint ce seuil." /></label>
+              <label>Montant par trade ($)<input id="ai-amount" type="number" min="10" max="5000" step="10" /></label>
+              <label>Take-profit (%)<input id="ai-takeProfitPct" type="number" min="1" max="500" step="1" /></label>
+              <label>Stop-loss (%)<input id="ai-stopLossPct" type="number" min="1" max="90" step="1" /></label>
+              <label>Liquidité min ($)<input id="ai-minLiquidity" type="number" min="0" step="500" /></label>
+              <label>Market cap min ($)<input id="ai-minMcap" type="number" min="0" step="50000" title="0 = pas de minimum. Zone 1M : 500 000 à 2 000 000." /></label>
+              <label>Market cap max ($)<input id="ai-maxMcap" type="number" min="0" step="50000" title="0 = pas de maximum." /></label>
+              <label>Positions max<input id="ai-maxOpen" type="number" min="1" max="20" step="1" /></label>
+              <label>Perte max par jour (% du capital)<input id="ai-dailyLossPct" type="number" min="0.5" max="100" step="0.5" /></label>
+              <label>Pas de ré-entrée avant (h)<input id="ai-cooldownHours" type="number" min="0" max="168" step="1" /></label>
+            </div>
+            <div class="hr-checks"><button class="text-button" id="ai-zone-1m" type="button">Zone 1M (500 K – 2 M)</button></div>
+            <div class="bot-status" id="ai-bot-status"></div>
+            <div class="bot-log" id="ai-bot-log"></div>
+            <p class="bot-warning">Une probabilité n'est pas une promesse : le modèle apprend sur peu de données au début et le marché change. Même validé, il peut perdre. Garde un petit ticket et suis ses résultats ici avant de lui faire confiance.</p>
+          </section>
+
+          <section class="bot-card call-card paper-only" id="call-card" aria-labelledby="call-title">
+            <div class="bot-head">
+              <div><p class="eyebrow">CANAL TELEGRAM · MODE TEST</p><h3 id="call-title">Channel Call Bot</h3></div>
+              <label class="switch"><input id="call-enabled" type="checkbox" /><span class="switch-track" aria-hidden="true"></span><span id="call-state">Désactivé</span></label>
+            </div>
+            <p class="bot-intro">Quand un call est publié dans ton canal Telegram (lien DexScreener ou adresse du coin), Pulse l'ajoute à tes notifications et, si le bot est actif, entre tout de suite dans le coin. Il ignore les posts de résultat (« X3 »), les réponses, les calls trop vieux et les coins qui ont déjà trop monté.</p>
+            <div class="call-source" id="call-source"></div>
+            <div class="bot-grid">
+              <label>Montant par trade ($)<input id="call-amount" type="number" min="10" max="5000" step="10" /></label>
+              <label>Take-profit (%)<input id="call-takeProfitPct" type="number" min="1" max="500" step="1" /></label>
+              <label>Stop-loss (%)<input id="call-stopLossPct" type="number" min="1" max="90" step="1" /></label>
+              <label>Âge max du call (min)<input id="call-maxAgeMin" type="number" min="1" max="120" step="1" title="Le bot n'entre que si le call a été publié il y a moins de ce délai." /></label>
+              <label>Hausse max depuis le call (%)<input id="call-maxChasePct" type="number" min="0" max="200" step="1" title="Il n'achète pas un coin qui a déjà pris plus que ce pourcentage depuis la publication du call." /></label>
+              <label>Liquidité min ($)<input id="call-minLiquidity" type="number" min="0" step="500" /></label>
+              <label>Positions max<input id="call-maxOpen" type="number" min="1" max="20" step="1" /></label>
+              <label>Perte max par jour (% du capital)<input id="call-dailyLossPct" type="number" min="0.5" max="100" step="0.5" /></label>
+              <label>Pas de ré-entrée avant (h)<input id="call-cooldownHours" type="number" min="0" max="168" step="1" /></label>
+            </div>
+            <div class="hr-checks"><label class="bot-check"><input id="call-useChannelSl" type="checkbox" /> <span>Utiliser le SL écrit dans le post (ex. « SL 100K » = market cap) : le coin sort de la liste dès qu'il passe dessous</span></label>
+              <label class="bot-check"><input id="call-reentries" type="checkbox" /> <span>Entrer aussi sur les posts « ré-entrée » d'un coin déjà annoncé</span></label>
+            </div>
+            <div class="bot-status" id="call-bot-status"></div>
+            <div class="call-list" id="call-list"></div>
+            <div class="bot-log" id="call-bot-log"></div>
+            <p class="bot-warning">Risque très élevé : un call de canal est souvent une opération promotionnelle, et le prix peut déjà avoir bougé quand tu entres. Les frais et le glissement sont simulés. Ce bot ne valide ni la sécurité ni la qualité du coin : garde un petit ticket.</p>
+          </section>
+        </section>
+
+        <section class="positions dashboard" id="positions" data-view="positions" aria-labelledby="positions-title">
+          <div class="section-title">
+            <div><p class="eyebrow">PORTEFEUILLE VIRTUEL <span class="live-badge" id="dash-live">● LIVE</span></p><h2 id="positions-title">Dashboard</h2></div>
+            <button id="reset-wallet" class="text-button" type="button">Réinitialiser</button>
+          </div>
+          <section class="live-only live-dashboard" id="live-dashboard" aria-label="Portefeuille réel">
+            <div class="kpi-grid" id="live-kpis"></div>
+            <div class="dash-head list-head"><strong>Positions de ton wallet</strong><span><button class="text-button" id="live-refresh" type="button">Actualiser</button> <span id="live-meta"></span></span></div>
+            <div class="position-cards" id="live-positions"></div>
+            <div class="dash-head list-head"><strong>Ordres récents</strong></div>
+            <div class="history-list" id="live-orders"></div>
+            <p class="live-note">Les stop-loss et take-profit du mode live sont des <b>alertes</b> : sans ta signature, aucun ordre ne peut être envoyé. Quand une limite est atteinte, tu es notifié et le bouton « Vendre » clignote.</p>
+          </section>
+          <div class="kpi-grid paper-only" id="kpi-grid"></div>
           <div class="dash-grid paper-only">
             <div class="dash-card wide">
               <div class="dash-head"><strong>Évolution du portefeuille</strong>
@@ -639,7 +794,7 @@
                   <div class="chart-timeframes" role="group" aria-label="Intervalle des bougies">
                     <button type="button" data-chart-tf="1m">1m</button><button type="button" class="active" data-chart-tf="5m">5m</button><button type="button" data-chart-tf="15m">15m</button><button type="button" data-chart-tf="1h">1h</button><button type="button" data-chart-tf="4h">4h</button><button type="button" data-chart-tf="1d">1j</button>
                   </div>
-                  <div class="chart-legend"><span class="legend-buy">▲ Achat</span><span class="legend-sell">▼ Vente</span><a id="chart-dex-link" href="#" target="_blank" rel="noopener noreferrer">DexScreener ↗</a></div>
+                  <div class="chart-legend"><span class="legend-buy">▲ Achat</span><span class="legend-sell">▼ Vente</span><a id="chart-dex-link" href="#" target="_blank" rel="noopener noreferrer">DexScreener ↗</a><a id="chart-fomo-link" href="#" target="_blank" rel="noopener noreferrer" title="Ouvrir ce token sur Fomo">Fomo ↗</a></div>
                 </div>
                 <div class="chart-box"><div id="coin-chart"></div><div class="chart-status" id="chart-status" hidden></div></div>
               </section>

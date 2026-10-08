@@ -103,3 +103,10 @@ test("saved pending orders are sanitised", () => {
   assert.equal(normalizePending([{ tokenId: "a", limitPrice: 1, expiresAt: 5 }, { tokenId: 4 }, null]).length, 1);
 });
 
+
+test("the bot never targets Wrapped SOL or stablecoins even when they look like signals", () => {
+  const sol = token("So11111111111111111111111111111111111111112");
+  const usdc = token("EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v");
+  const real = token("COIN");
+  assert.deepEqual(run({ tokens: [sol, usdc, real], config: { ...IMMEDIATE, source: "qualified" } }).buys.map(buy => buy.token.id), ["COIN"]);
+});

@@ -4,6 +4,9 @@ import { createEquityChart } from "./equity-chart.js";
 import { profitTransition, addEquityPoint, allocation, barScale, donutSvg, formatDuration, limitProgress, maxDrawdown, pnlByDay, pnlByToken, tradeStats } from "./dashboard.js";
 import { base58Encode, base64ToBytes, costBasis, describeOrder, lamportsToSol, limitBreach, orderPrioritySol, positionValue as livePositionValue, rawFraction, rawToUi, upsertOrder } from "./live.js";
 import { DEFAULT_BOT, botPnlToday, botStats, normalizeBot, normalizePending, pickEntries } from "./autobot.js";
+import { hrPnlToday, hrStats, normalizeHr, pickHrEntries } from "./hrbot.js";
+import { aiPnlToday, aiStats, normalizeAi, pickAiEntries } from "./aibot.js";
+import { callPnlToday, callRejection, callStats, callStopReason, normalizeCall, pickCallEntries } from "./callbot.js";
 import { buildTradePlan, exitAdvice, planPercents } from "./trade-plan.js";
 import { detectWallets, iconForName, removeWallet, shortAddress, toAddress, totalSol, upsertWallet } from "./wallets.js";
 import { normalizeLimitOrders, settleLimitOrders, FEE_PRESETS, START_BALANCE, buildTradeMarkers, costsFor, presetById, presetForCapital, checkTriggers, normalizeWallet, sellFraction, openPosition, positionValue, pushHistory, quoteBuy, summarizeHistory, validateBuy } from "./paper-trading.js";
@@ -109,7 +112,15 @@ window.dispatchEvent(new CustomEvent("wallet-standard:app-ready", {
 
 function riskClass(risk) { return risk === "Faible" ? "low" : risk === "Moyen" ? "medium" : risk === "Élevé" ? "high" : "unknown"; }
 function scoreClass(score) { return score >= 70 ? "good" : score >= 50 ? "warn" : "bad"; }
-function currentToken() { return tokens.find(token => token.id === state.selected) ?? state.adhoc.get(state.selected) ?? tokens[0]; }
+/** Base assets (SOL, USDC, USDT) that are never a trade target: the bots skip them and a manual buy is refused. */
+const NOT_TRADABLE = new Set(["So11111111111111111111111111111111111111112", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB"]);
+const knownTokens = new Map();
+/** The token open in the coin window. When it dropped out of the scanner list, its last known data is kept instead of silently showing another coin. */
+function currentToken() {
+  const found = tokens.find(token => token.id === state.selected);
+  if (found) { knownTokens.set(found.id, found); if (knownTokens.size > 60) knownTokens.delete(knownTokens.keys().next().value); return found; }
+  return state.adhoc.get(state.selected) ?? knownTokens.get(state.selected) ?? tokens[0];
+}
 function saveWallet() {
   try { localStorage.setItem("pulse-wallet", JSON.stringify({ balance: state.balance, positions: state.positions, history: state.history })); } catch { /* storage unavailable */ }
 }
@@ -411,7 +422,7 @@ function setCoinTab(tab) {
 }
 state.coinTab = (() => { try { return localStorage.getItem("pulse-coin-tab") || "plan"; } catch { return "plan"; } })();
 
-function tokenFor(position) { return tokens.find(item => item.id === position.tokenId) ?? state.held.get(position.tokenId); }
+function tokenFor(position) { return tokens.find(item => item.id === position.tokenId) ?? state.held.get(position.tokenId) ?? newCoins.tokens.find(item => item.id === position.tokenId); }
 
 function portfolioValue() {
   return state.positions.reduce((total, position) => total + positionValue(position, tokenFor(position)), 0);
@@ -1056,6 +1067,8 @@ const chartStatus = document.querySelector("#chart-status");
 let coinChart = null;
 let chartCandles = [];
 let chartLoadedKey = null;
+let chartRetries = 0;
+let chartRetryKey = null;
 let chartRefresh = null;
 let chartRequest = 0;
 state.chartTf = "5m";
@@ -1090,11 +1103,13 @@ document.querySelector("#trade-dip").addEventListener("input", () => { if (!coin
 async function loadChart({ fit = true } = {}) {
   const token = currentToken();
   const request = ++chartRequest;
+  document.querySelector("#chart-fomo-link").href = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(token.address ?? "") ? `https://fomo.family/tokens/solana/${token.address}` : "#";
   document.querySelector("#chart-dex-link").href = token.dexUrl && /^https:\/\/dexscreener\.com\//.test(token.dexUrl) ? token.dexUrl : "#";
   if (!token.pairAddress) {
     chartCandles = [];
     coinChart.setCandles([]);
-    setChartStatus("Graphique indisponible : données simulées.");
+    renderPlan();
+    setChartStatus(token.synthetic ? "Pas encore de graphique : ce coin vient de naître et n'est pas encore listé sur DexScreener. Le prix affiché est estimé depuis pump.fun." : "Graphique indisponible : données simulées.");
     return;
   }
   try {
@@ -1104,12 +1119,21 @@ async function loadChart({ fit = true } = {}) {
     if (request !== chartRequest) return;
     chartCandles = payload.candles ?? [];
     chartLoadedKey = `${token.pairAddress}:${state.chartTf}`;
+    chartRetries = 0;
     coinChart.setCandles(chartCandles, { fit });
     setChartStatus(chartCandles.length ? null : "Pas encore de bougies pour ce coin (pool trop récent).");
     renderChartTrades();
     renderPlan();
   } catch {
-    if (request === chartRequest && chartLoadedKey !== `${token.pairAddress}:${state.chartTf}`) setChartStatus("Graphique momentanément indisponible.");
+    if (request === chartRequest && chartLoadedKey !== `${token.pairAddress}:${state.chartTf}`) {
+      // The candle provider rate-limits: keep trying quietly for a while instead of leaving an error on screen.
+      const retryKey = `${token.pairAddress}:${state.chartTf}`;
+      chartRetries = (retryKey === chartRetryKey ? chartRetries : 0) + 1; chartRetryKey = retryKey;
+      if (chartRetries <= 6) {
+        setChartStatus("Graphique en attente (limite du fournisseur de données), nouvel essai…");
+        setTimeout(() => { if (request === chartRequest && !coinModal.hidden) loadChart({ fit }); }, 5_000);
+      } else setChartStatus("Graphique momentanément indisponible.");
+    }
   }
 }
 
@@ -1166,6 +1190,7 @@ async function loadXSignal() {
 }
 
 function openCoin(id) {
+  state.coinOpenId = id;
   selectToken(id);
   coinModal.hidden = false;
   document.body.classList.add("modal-open");
@@ -1253,9 +1278,10 @@ document.querySelectorAll("[data-sort]").forEach(button => button.addEventListen
 }));
 document.querySelector("#search").addEventListener("input", event => { state.query = event.target.value; renderTable(); });
 document.querySelector("#refresh").addEventListener("click", async event => {
-  event.currentTarget.classList.add("spinning");
+  const button = event.currentTarget; // currentTarget is null once the handler has awaited
+  button.classList.add("spinning");
   const loaded = await loadTokens(true);
-  setTimeout(() => event.currentTarget.classList.remove("spinning"), 700);
+  setTimeout(() => button.classList.remove("spinning"), 700);
   if (loaded) {
     renderTable(); renderDetail(); renderPositions();
     showToast(state.market.live ? "Cours du marché actualisés." : "Source live indisponible : mode simulation.");
@@ -1268,6 +1294,8 @@ document.querySelector("#trade-amount").addEventListener("input", renderTradeQuo
 document.querySelector("#trade-button").addEventListener("click", () => {
   const amount = Number(document.querySelector("#trade-amount").value);
   const token = currentToken();
+  if (NOT_TRADABLE.has(token.id)) return showToast("Wrapped SOL et les stablecoins ne se tradent pas ici : choisis un coin.");
+  if (coinModal.hidden || !state.coinOpenId || token.id !== state.coinOpenId || token.id !== state.selected) return showToast("Ce coin n'est plus chargé : rouvre-le avant d'acheter.");
   const preset = activePreset(amount);
   const costs = costsFor(preset, currentSolUsd());
   const error = validateBuy(token, amount, state.balance, { preset, costs });
@@ -1439,7 +1467,7 @@ async function loadTokens(refresh = false) {
   try {
     const params = new URLSearchParams();
     if (refresh) params.set("refresh", "1");
-    const heldIds = [...new Set([...state.positions.map(position => position.tokenId), ...state.custom])].slice(0, 30);
+    const heldIds = [...new Set([...state.positions.map(position => position.tokenId), ...state.custom, ...(state.selected && !coinModal.hidden ? [state.selected] : [])])].slice(0, 30);
     if (heldIds.length) params.set("held", heldIds.join(","));
     const response = await fetch(`/api/tokens${params.size ? `?${params}` : ""}`, { headers: { accept: "application/json" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -1461,6 +1489,7 @@ async function loadTokens(refresh = false) {
     state.held = new Map((payload.held ?? []).map(token => [token.id, token]));
     for (const token of state.held.values()) {
       if (state.custom.has(token.id) && !tokens.some(item => item.id === token.id)) tokens.push({ ...token, custom: true, movement: {} });
+      else if (token.id === state.selected && !tokens.some(item => item.id === token.id)) state.adhoc.set(token.id, { ...token, movement: {} }); // keeps the open coin's quote fresh after it left the list
     }
     for (const position of state.positions) {
       const live = tokenFor(position);
@@ -1469,7 +1498,8 @@ async function loadTokens(refresh = false) {
     runTriggers();
     detectProfitCrossings();
     saveWallet();
-    if (!tokens.some(token => token.id === state.selected)) state.selected = tokens[0].id;
+    // The selection falls back to the first scanner token only when no coin window is showing a coin that left the list (that reset made buys land on Wrapped SOL).
+    if (coinModal.hidden && !tokens.some(token => token.id === state.selected)) state.selected = tokens[0].id;
     document.querySelector("#stat-scanned").textContent = Number(payload.scanned ?? 0).toLocaleString(locale);
     document.querySelector("#stat-qualified").textContent = tokens.filter(token => token.signal ? token.signal.tradable : token.score >= 70).length;
     renderMarketTotals();
@@ -1483,6 +1513,7 @@ async function loadTokens(refresh = false) {
     state.market.updatedAt = new Date(payload.updatedAt).getTime();
     state.market.nextRefreshAt = Date.now() + LIVE_REFRESH_MS;
     runBot();
+    runAiBot();
     runManualOrders();
     saveWallet();
     document.querySelector("#scanner-label").textContent = payload.live ? "Marché live" : "Mode simulation";
@@ -1545,6 +1576,23 @@ try {
 
 renderManualOrders();
 
+/* ---- Left sidebar: expand / collapse and the extra shortcuts ---- */
+(() => {
+  const toggle = document.querySelector("#sidebar-toggle");
+  let open = false;
+  try { open = localStorage.getItem("pulse-sidebar") === "1"; } catch { /* storage unavailable */ }
+  const apply = () => { document.body.classList.toggle("sidebar-open", open); toggle.setAttribute("aria-expanded", String(open)); };
+  apply();
+  toggle.addEventListener("click", () => { open = !open; apply(); try { localStorage.setItem("pulse-sidebar", open ? "1" : "0"); } catch { /* ignore */ } });
+  document.querySelector("#sidebar-add").addEventListener("click", () => { showView("scanner"); setTimeout(() => document.querySelector("#search")?.focus(), 50); });
+  document.querySelector("#side-help").addEventListener("click", () => document.querySelector("#account-legal").click());
+  document.querySelector("#side-settings").addEventListener("click", event => { event.stopPropagation(); document.querySelector("#notif-button").click(); }); // stopPropagation: the "click outside" handler would close the menu at once
+  const mobileModal = document.querySelector("#mobile-modal");
+  document.querySelector("#side-mobile").addEventListener("click", () => { mobileModal.hidden = false; refreshTelegramLink(); });
+  document.querySelectorAll("[data-close-mobile]").forEach(button => button.addEventListener("click", () => { mobileModal.hidden = true; }));
+  document.addEventListener("keydown", event => { if (event.key === "Escape") mobileModal.hidden = true; });
+})();
+
 /* ---- Views and standings ---- */
 const standingsState = { board: "competition", slug: null, timer: null, data: null };
 const money = value => `${value >= 0 ? "+" : "−"}$${Math.abs(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -1566,6 +1614,30 @@ function signalCard(token) {
   </button>`;
 }
 
+/** Calls published in the owner's Telegram channel in the last hour, shown as early starts (a call is the earliest signal there is). */
+const CALL_START_WINDOW_MS = 60 * 60_000;
+function channelCallStarts() {
+  let calls;
+  try { calls = callbot.calls; } catch { return []; } // the bot state is defined further down: not available during the first render
+  const seen = new Set();
+  return calls.filter(call => (call.kind === "call" || call.kind === "reentry") && call.token?.price > 0 && Date.now() - call.at <= CALL_START_WINDOW_MS && !callStopReason(call, callbot.config))
+    .sort((first, second) => second.at - first.at)
+    .filter(call => !seen.has(call.token.id) && seen.add(call.token.id))
+    .map(call => {
+      const token = call.token;
+      const minutes = Math.max(Math.round((Date.now() - call.at) / 60_000), 0);
+      const since = call.priceAtCall > 0 ? (token.price / call.priceAtCall - 1) * 100 : 0;
+      return {
+        ...token, callAt: call.at,
+        early: {
+          early: true, score: 100, stage: call.kind === "reentry" ? "📣 ré-entrée du canal" : "📣 call du canal",
+          acceleration: token.volume > 0 ? (Number(token.volume5m) || 0) * 12 / token.volume : 0,
+          reasons: [`${call.channel ?? "Canal Telegram"} · il y a ${minutes} min`, `Prix depuis le call : ${since >= 0 ? "+" : "−"}${Math.abs(since).toFixed(1)} %${call.slMcap > 0 ? ` · SL du canal ${formatMarketMoney(call.slMcap)}` : ""}`, `Liq ${formatMarketMoney(token.liquidity)}`]
+        }
+      };
+    });
+}
+
 function earlyCard(token) {
   const early = token.early;
   const reasons = early.reasons.slice(0, 3).map(reason => `<li>${esc(reason)}</li>`).join("");
@@ -1573,7 +1645,7 @@ function earlyCard(token) {
     <div class="signal-card-head">
       <span class="mini-avatar" style="--accent:${esc(token.accent)}">${avatarContent(token)}</span>
       <span class="signal-card-name"><strong>${esc(token.name)}</strong><small>$${esc(token.symbol)} · ${formatTokenAge(token)}${token.pump ? ` · ${token.pump.graduated ? "gradué" : "pump.fun"}` : ""}</small></span>
-      <span class="grade grade-early">⚡ <b>${early.score}</b></span>
+      <span class="grade grade-early">${token.callAt ? "📣 <b>Call</b>" : `⚡ <b>${early.score}</b>`}</span>
     </div>
     <div class="signal-card-stats"><span>${esc(early.stage)}</span><span>5M ${changePill(token.change5m, "")}</span><span>1H ${changePill(token.change, "")}</span></div>
     <div class="signal-card-stats"><span>MCAP <strong>${formatMarketMoney(token.marketCap)}</strong></span><span>Liq <strong>${formatMarketMoney(token.liquidity)}</strong></span><span>Vol ×<strong>${early.acceleration.toFixed(1)}</strong></span></div>
@@ -1597,13 +1669,14 @@ function renderFunnel() {
 const sniperTone = score => (score >= 65 ? "good" : score >= 45 ? "mid" : "low");
 function sniperChip(token) {
   if (!token.sniper) return "";
-  const lines = token.sniper.layers.map(layer => `${layer.label} ${layer.passed ? "✔" : "✖"} ${Math.round(layer.score)}/${layer.max}\n` + layer.checks.map(item => `${item.status === "ok" ? "✔" : item.status === "fail" ? "✖" : "?"} ${item.label} : ${item.text}`).join("\n")).join("\n\n");
-  return `<span class="sniper-chip ${sniperTone(token.sniper.score)}" title="${esc(lines)}">Sniper <b>${token.sniper.score}</b> · ${esc(token.sniper.verdict)}</span>`;
+  const lines = token.sniper.layers.map(layer => `${t(layer.label)} ${layer.passed ? "✔" : "✖"} ${Math.round(layer.score)}/${layer.max}\n` + layer.checks.map(item => `${item.status === "ok" ? "✔" : item.status === "fail" ? "✖" : "?"} ${t(item.label)} : ${t(item.text)}`).join("\n")).join("\n\n");
+  return `<span class="sniper-chip ${sniperTone(token.sniper.score)}" title="${esc(lines)}">Sniper <b>${token.sniper.score}</b> · ${esc(t(token.sniper.verdict))}</span>`;
 }
 
 function renderSignals() {
   renderFunnel();
-  const starts = tokens.filter(token => token.early?.early).sort((first, second) => second.early.score - first.early.score);
+  const detected = tokens.filter(token => token.early?.early && !channelCallStarts().some(call => call.id === token.id)).sort((first, second) => second.early.score - first.early.score);
+  const starts = [...channelCallStarts(), ...detected];
   document.querySelector("#early-cards").innerHTML = starts.length
     ? starts.map(earlyCard).join("")
     : '<div class="positions-empty">Aucun démarrage détecté pour le moment. Les conditions sont strictes : reviens dans quelques minutes.</div>';
@@ -1629,6 +1702,8 @@ function showView(view) {
   clearInterval(standingsState.timer);
   clearInterval(newCoinsTimer);
   clearInterval(historyPage.timer);
+  if (view === "wallet") import("./wallet-analysis.js");
+  if (view === "aiagent") import("./ai-agent.js").then(module => module.startAiAgentView());
   if (view === "admin") import("./admin.js").then(module => module.loadAdmin());
   if (view === "history") { renderHistoryPage(); loadHistoryStatus(); historyPage.timer = setInterval(loadHistoryStatus, 15_000); }
   if (view === "newcoins") { loadNewCoins(); newCoinsTimer = setInterval(loadNewCoins, 10_000); }
@@ -1799,6 +1874,19 @@ let searchSeq = 0;
 
 function hideSearchResults() { searchResults.hidden = true; }
 
+/** The result list is fixed to the viewport: aligned with the search field, never under the left menu or past the screen edge. */
+function placeSearchResults() {
+  if (searchResults.hidden) return;
+  const field = document.querySelector("#search").closest(".search-field").getBoundingClientRect();
+  const menu = window.innerWidth > 800 ? document.querySelector("#sidebar").getBoundingClientRect().right : 0;
+  const width = Math.min(440, window.innerWidth - menu - 24);
+  const left = Math.min(Math.max(field.right - width, menu + 12), window.innerWidth - width - 12);
+  const room = Math.max(window.innerHeight - field.bottom - 24, 160);
+  searchResults.style.cssText = `position:fixed;top:${Math.round(field.bottom + 6)}px;left:${Math.round(left)}px;right:auto;width:${Math.round(width)}px;max-height:${Math.round(room)}px;overflow-y:auto;`;
+}
+window.addEventListener("resize", placeSearchResults);
+window.addEventListener("scroll", placeSearchResults, { passive: true });
+
 async function runRemoteSearch() {
   const query = state.query.trim();
   const seq = ++searchSeq;
@@ -1816,6 +1904,7 @@ async function runRemoteSearch() {
       <span class="search-meta">MC ${formatMarketMoney(token.marketCap)}<small>Liq ${formatMarketMoney(token.liquidity)}</small></span>
       <b>+ Ajouter</b></button>`).join("");
     searchResults.hidden = false;
+    placeSearchResults();
     searchResults.found = fresh;
   } catch {
     if (seq === searchSeq) hideSearchResults();
@@ -1900,7 +1989,9 @@ async function loadSecurity(token) {
 
 document.querySelector("#signals-view").addEventListener("click", event => {
   const card = event.target.closest("[data-open-coin]");
-  if (card) openCoin(card.dataset.openCoin);
+  if (!card) return;
+  const id = card.dataset.openCoin;
+  if (tokens.some(token => token.id === id)) openCoin(id); else openTokenById(id);
 });
 renderSignals();
 
@@ -1982,9 +2073,10 @@ function pushToTelegram({ type, title, body }) {
 function renderTelegramLink(code = null) {
   const box = document.querySelector("#tg-link");
   box.hidden = !telegramLink.enabled;
+  document.querySelector("#tg-unavailable").hidden = telegramLink.enabled;
   if (!telegramLink.enabled) return;
   const body = document.querySelector("#tg-link-body");
-  document.querySelector("#tg-enabled").checked = notifState.telegram && telegramLink.linked;
+  document.querySelector("#tg-enabled").checked = notifState.telegram; // the intent, also while the link code is still pending
   if (telegramLink.linked) body.innerHTML = `<span class="plan-pill ok">Telegram lié</span><button class="text-button" id="tg-unlink" type="button">Délier</button>`;
   else if (code) body.innerHTML = `<span>Envoie ce message à <b>@${esc(telegramLink.bot ?? "")}</b> :</span><code>/start ${esc(code)}</code><a class="text-button" href="https://t.me/${esc(telegramLink.bot ?? "")}?start=${esc(code)}" target="_blank" rel="noopener noreferrer">Ouvrir Telegram ↗</a>`;
   else body.innerHTML = "";
@@ -2501,6 +2593,8 @@ async function openTokenById(mint) {
   }
 }
 
+document.addEventListener("pulse:open-token", event => { const mint = event.detail?.mint; if (typeof mint === "string" && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) openTokenById(mint); });
+
 document.querySelector("#follow-form").addEventListener("submit", async event => {
   event.preventDefault();
   const input = document.querySelector("#follow-input");
@@ -2539,6 +2633,8 @@ function handleFollowButton(event) {
 }
 document.querySelector("#standings-table").addEventListener("click", handleFollowButton);
 document.querySelector("#standings-table").addEventListener("keydown", handleFollowButton);
+document.querySelector("#wa-leaders").addEventListener("click", handleFollowButton);
+document.querySelector("#wa-leaders").addEventListener("keydown", handleFollowButton);
 
 updateFollowCount();
 setTimeout(pollFollows, 4_000);
@@ -2638,10 +2734,13 @@ async function loadNewCoins() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     newCoins.tokens = payload.tokens;
+    for (const fresh of payload.tokens) if (fresh.synthetic && state.adhoc.get(fresh.id)?.synthetic) state.adhoc.set(fresh.id, syntheticToken(fresh)); // keeps the open coin's price fresh
     newCoins.loaded = true;
     newCoins.updatedAt = payload.updatedAt;
     notifyNewCoins(payload.tokens);
     renderNewCoins();
+    runHrBot();
+    runAiBot();
   } catch {
     status.textContent = "indisponible";
   }
@@ -2658,16 +2757,30 @@ for (const [id, key] of [["#new-min-mc", "mc"], ["#new-min-vol", "vol"]]) {
 }
 document.querySelector("#new-filter").addEventListener("change", event => { newChips.full = event.target.checked; saveNewChips(); renderNewCoins(); });
 document.querySelector("#new-refresh").addEventListener("click", loadNewCoins);
+/** A pump.fun coin DEX Screener does not list yet: opened in the coin window from pump.fun's own data (estimated price, no chart yet), tradable in the simulator. */
+function syntheticToken(token) {
+  const zero = Object.fromEntries(["change", "change5m", "change6h", "change24h", "volume", "volume5m", "volume6h", "transactions", "buys", "sells", "buys5m", "sells5m"].map(key => [key, Number(token[key]) || 0]));
+  return {
+    ...token, ...zero, accent: token.accent ?? "#8b9699", initials: token.initials ?? String(token.symbol ?? "?").slice(0, 2).toUpperCase(),
+    score: token.score ?? 0, risk: token.risk ?? "Élevé", movement: {}, pairAddress: null, dexUrl: null, synthetic: true, seenAt: Date.now()
+  };
+}
+function openSyntheticCoin(token) {
+  state.adhoc.set(token.id, syntheticToken(token));
+  openCoin(token.id);
+}
+
 function openNewCoin(row) {
   const token = row && newCoins.tokens.find(item => item.id === row.dataset.new);
   if (!token) return;
-  if (token.synthetic) { window.open(token.pumpUrl, "_blank", "noopener,noreferrer"); return; }
+  if (token.synthetic) { openSyntheticCoin(token); return; }
   openTokenById(token.id);
 }
 document.querySelector("#newcoins-body").addEventListener("click", event => openNewCoin(event.target.closest("[data-new]")));
 document.querySelector("#newcoins-body").addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openNewCoin(event.target.closest("[data-new]")); } });
 setTimeout(loadNewCoins, 2_500);
 setInterval(() => { if (document.querySelector("#newcoins-view").hidden) loadNewCoins(); }, 30_000);
+setInterval(() => { if (hrbot.config.enabled && state.mode !== "live" && !document.hidden && document.querySelector("#newcoins-view").hidden) loadNewCoins(); }, 8_000); // the High Risk Bot needs a fresh list even when the New coins tab is closed
 
 document.querySelector("#coin-tabs").addEventListener("click", event => {
   const button = event.target.closest("[data-ctab]");
@@ -3216,6 +3329,7 @@ function renderBot() {
   document.querySelector("#bot-pending").innerHTML = bot.pending.length
     ? `<strong>Ordres limites en attente</strong>${bot.pending.map(order => `<div><span>$${esc(order.symbol)} · achat à $${order.limitPrice.toLocaleString(locale, { maximumSignificantDigits: 4 })}</span><small>expire dans ${Math.max(0, Math.ceil((order.expiresAt - Date.now()) / 60_000))} min</small></div>`).join("")}`
     : "";
+  updateBotDot();
   document.querySelector("#bot-log").innerHTML = bot.log.length
     ? bot.log.slice(0, 8).map(item => `<div><time>${new Date(item.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span>${esc(item.text)}</span></div>`).join("")
     : '<div class="muted">Aucune action pour le moment.</div>';
@@ -3232,3 +3346,259 @@ document.querySelector("#bot-enabled").addEventListener("change", event => {
 document.querySelector("#bot-source").addEventListener("change", event => { bot.config = normalizeBot({ ...bot.config, source: event.target.value }); saveBot(); renderBot(); });
 for (const field of BOT_FIELDS) document.querySelector(`#bot-${field}`).addEventListener("change", event => { bot.config = normalizeBot({ ...bot.config, [field]: event.target.value }); saveBot(); renderBot(); });
 renderBot();
+
+/* ---- High Risk Bot · News Token (TEST mode): buys brand-new coins, sells at a small fixed take-profit ---- */
+const HR_FIELDS = ["amount", "takeProfitPct", "stopLossPct", "maxAgeMin", "minMcap", "maxMcap", "minVolume", "minHolderGrowthPct", "maxOpen", "dailyLossPct", "cooldownHours"];
+const hrbot = { config: normalizeHr(null), log: [], entries: {}, paused: null };
+try { hrbot.config = normalizeHr(JSON.parse(localStorage.getItem("pulse-hrbot") || "null")); } catch { /* defaults */ }
+try { const saved = JSON.parse(localStorage.getItem("pulse-hrbot-log") || "[]"); if (Array.isArray(saved)) hrbot.log = saved.filter(item => item && typeof item.text === "string").slice(0, BOT_LOG_LIMIT); } catch { /* empty log */ }
+function saveHr() { try { localStorage.setItem("pulse-hrbot", JSON.stringify(hrbot.config)); localStorage.setItem("pulse-hrbot-log", JSON.stringify(hrbot.log)); } catch { /* storage unavailable */ } }
+function hrLog(text) { hrbot.log.unshift({ at: Date.now(), text }); hrbot.log = hrbot.log.slice(0, BOT_LOG_LIMIT); }
+
+function runHrBot() {
+  if (state.mode === "live" || !hrbot.config.enabled || !newCoins.loaded) return;
+  for (const position of state.positions) if (position.hr && position.openedAt) hrbot.entries[position.tokenId] = Math.max(hrbot.entries[position.tokenId] ?? 0, position.openedAt);
+  for (const trade of state.history) if (trade.hr) hrbot.entries[trade.tokenId] = Math.max(hrbot.entries[trade.tokenId] ?? 0, trade.openedAt ?? 0);
+  const { buys, paused } = pickHrEntries({ coins: newCoins.tokens, positions: state.positions, history: state.history, balance: state.balance, startBalance: START_BALANCE, config: hrbot.config, lastEntries: hrbot.entries });
+  hrbot.paused = paused;
+  let opened = 0;
+  for (const { token, amount } of buys) {
+    const preset = activePreset(amount);
+    const costs = costsFor(preset, currentSolUsd());
+    const priced = { ...token, liquidity: token.liquidity > 0 ? token.liquidity : 5000 };
+    if (validateBuy(priced, amount, state.balance, { preset, costs })) continue;
+    state.balance -= amount;
+    const position = { ...openPosition(priced, amount, { costs, preset, stopLossPct: hrbot.config.stopLossPct, takeProfitPct: hrbot.config.takeProfitPct }), hr: true };
+    state.positions.unshift(position);
+    hrbot.entries[token.id] = position.openedAt;
+    opened++;
+    hrLog(`Achat ${formatMoney(amount)} · $${token.symbol} (nouveau coin, ${Math.round(token.ageMinutes ?? 0)} min, cap ${formatMarketMoney(token.marketCap)}) · SL −${hrbot.config.stopLossPct} % · TP +${hrbot.config.takeProfitPct} %`);
+    notify({ type: "entry", tokenId: token.id, title: `High Risk Bot : achat · $${token.symbol}`, body: `${formatMoney(amount)} · TP +${hrbot.config.takeProfitPct} % · SL −${hrbot.config.stopLossPct} %` });
+  }
+  if (opened) { saveHr(); saveWallet(); renderPositions(); }
+  runTriggers(); // take-profit / stop-loss on every position, including the coins DEX Screener does not list yet
+  renderHr();
+}
+
+function renderHr() {
+  const card = document.querySelector("#hr-card");
+  if (!card) return;
+  const { config } = hrbot;
+  const live = state.mode === "live";
+  document.querySelector("#hr-enabled").checked = config.enabled;
+  document.querySelector("#hr-state").textContent = live ? "Indisponible en LIVE" : config.enabled ? (hrbot.paused === "daily-loss" ? "En pause" : "Actif") : "Désactivé";
+  for (const field of HR_FIELDS) { const input = document.querySelector(`#hr-${field}`); if (input && document.activeElement !== input) input.value = config[field]; }
+  document.querySelector("#hr-requireFilter").checked = config.requireFilter;
+  document.querySelector("#hr-requireSocials").checked = config.requireSocials;
+  document.querySelector("#hr-requireSecurity").checked = config.requireSecurity;
+  const stats = hrStats(state.history);
+  const open = state.positions.filter(position => position.hr).length;
+  const parts = [`${open} / ${config.maxOpen} position${open > 1 ? "s" : ""} High Risk`, `${stats.count} trade${stats.count > 1 ? "s" : ""} clôturé${stats.count > 1 ? "s" : ""}`];
+  if (stats.winRate != null) parts.push(`réussite ${stats.winRate.toFixed(0)} %`, `P&L ${stats.pnl >= 0 ? "+" : ""}${formatMoney(stats.pnl, 2)}`);
+  const today = hrPnlToday(state.history);
+  parts.push(`aujourd'hui ${today >= 0 ? "+" : ""}${formatMoney(today, 2)}`);
+  const status = document.querySelector("#hr-status");
+  status.className = `bot-status ${hrbot.paused === "daily-loss" ? "warn" : ""}`;
+  status.textContent = (hrbot.paused === "daily-loss" ? "⏸ Perte maximale du jour atteinte : le bot reprend demain. · " : "") + parts.join(" · ");
+  document.querySelector("#hr-log").innerHTML = hrbot.log.length
+    ? hrbot.log.slice(0, 8).map(item => `<div><time>${new Date(item.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span>${esc(item.text)}</span></div>`).join("")
+    : '<div class="muted">Aucune action pour le moment.</div>';
+  updateBotDot();
+}
+
+/** Green dot in the menu while a bot is running (yellow when every running bot is paused by its daily loss limit). */
+function updateBotDot() {
+  const dot = document.querySelector("#bot-nav-dot");
+  if (!dot) return;
+  let running = [];
+  try { running = [[bot.config.enabled, bot.paused], [hrbot.config.enabled, hrbot.paused], [aibot.config.enabled, aibot.paused], [callbot.config.enabled, callbot.paused]].filter(([enabled]) => enabled); } catch { running = bot.config.enabled ? [[true, bot.paused]] : []; } // hrbot is not defined yet during the first render
+  dot.hidden = state.mode === "live" || !running.length;
+  dot.className = `bot-nav-dot ${running.length && running.every(([, paused]) => paused === "daily-loss") ? "paused" : ""}`;
+}
+
+document.querySelector("#hr-enabled").addEventListener("change", event => {
+  if (state.mode === "live") { event.target.checked = false; showToast("Le bot ne trade qu'en mode TEST : en LIVE, tu signes chaque ordre."); return; }
+  hrbot.config.enabled = event.target.checked;
+  hrLog(hrbot.config.enabled ? "High Risk Bot activé." : "High Risk Bot désactivé.");
+  saveHr(); renderHr();
+  if (hrbot.config.enabled) loadNewCoins();
+});
+for (const field of HR_FIELDS) document.querySelector(`#hr-${field}`).addEventListener("change", event => { hrbot.config = normalizeHr({ ...hrbot.config, [field]: event.target.value }); saveHr(); renderHr(); });
+for (const field of ["requireFilter", "requireSocials", "requireSecurity"]) document.querySelector(`#hr-${field}`).addEventListener("change", event => { hrbot.config = normalizeHr({ ...hrbot.config, [field]: event.target.checked }); saveHr(); renderHr(); });
+renderHr();
+
+/* ---- AI Agent Bot (TEST mode): buys the coins the server-side AI Agent scores highest ---- */
+const AI_FIELDS = ["minProb", "amount", "takeProfitPct", "stopLossPct", "minLiquidity", "minMcap", "maxMcap", "maxOpen", "dailyLossPct", "cooldownHours"];
+const aibot = { config: normalizeAi(null), log: [], entries: {}, paused: null };
+try { aibot.config = normalizeAi(JSON.parse(localStorage.getItem("pulse-aibot") || "null")); } catch { /* defaults */ }
+try { const saved = JSON.parse(localStorage.getItem("pulse-aibot-log") || "[]"); if (Array.isArray(saved)) aibot.log = saved.filter(item => item && typeof item.text === "string").slice(0, BOT_LOG_LIMIT); } catch { /* empty log */ }
+function saveAi() { try { localStorage.setItem("pulse-aibot", JSON.stringify(aibot.config)); localStorage.setItem("pulse-aibot-log", JSON.stringify(aibot.log)); } catch { /* storage unavailable */ } }
+function aiLog(text) { aibot.log.unshift({ at: Date.now(), text }); aibot.log = aibot.log.slice(0, BOT_LOG_LIMIT); }
+
+function runAiBot() {
+  if (state.mode === "live" || !aibot.config.enabled) return;
+  const coins = [...tokens, ...newCoins.tokens];
+  if (!coins.length) return;
+  for (const position of state.positions) if (position.ai && position.openedAt) aibot.entries[position.tokenId] = Math.max(aibot.entries[position.tokenId] ?? 0, position.openedAt);
+  for (const trade of state.history) if (trade.ai) aibot.entries[trade.tokenId] = Math.max(aibot.entries[trade.tokenId] ?? 0, trade.openedAt ?? 0);
+  const { buys, paused } = pickAiEntries({ coins, positions: state.positions, history: state.history, balance: state.balance, startBalance: START_BALANCE, config: aibot.config, lastEntries: aibot.entries });
+  aibot.paused = paused;
+  let opened = 0;
+  for (const { token, amount, p } of buys) {
+    const preset = activePreset(amount);
+    const costs = costsFor(preset, currentSolUsd());
+    const priced = { ...token, liquidity: token.liquidity > 0 ? token.liquidity : 5000 };
+    if (validateBuy(priced, amount, state.balance, { preset, costs })) continue;
+    state.balance -= amount;
+    const position = { ...openPosition(priced, amount, { costs, preset, stopLossPct: aibot.config.stopLossPct, takeProfitPct: aibot.config.takeProfitPct }), ai: true };
+    state.positions.unshift(position);
+    aibot.entries[token.id] = position.openedAt;
+    opened++;
+    aiLog(`Achat ${formatMoney(amount)} · $${token.symbol} (probabilité ${Math.round(p * 100)} %${token.ai.pros?.length ? ` : ${token.ai.pros.slice(0, 2).join(", ")}` : ""}) · SL −${aibot.config.stopLossPct} % · TP +${aibot.config.takeProfitPct} %`);
+    notify({ type: "entry", tokenId: token.id, title: `AI Agent : achat · $${token.symbol}`, body: `${Math.round(p * 100)} % · ${formatMoney(amount)} · TP +${aibot.config.takeProfitPct} % · SL −${aibot.config.stopLossPct} %` });
+  }
+  if (opened) { saveAi(); saveWallet(); renderPositions(); }
+  renderAi();
+}
+
+function renderAi() {
+  const card = document.querySelector("#ai-card");
+  if (!card) return;
+  const { config } = aibot;
+  const live = state.mode === "live";
+  document.querySelector("#ai-enabled").checked = config.enabled;
+  document.querySelector("#ai-state").textContent = live ? "Indisponible en LIVE" : config.enabled ? (aibot.paused === "daily-loss" ? "En pause" : "Actif") : "Désactivé";
+  for (const field of AI_FIELDS) { const input = document.querySelector(`#ai-${field}`); if (input && document.activeElement !== input) input.value = config[field]; }
+  const stats = aiStats(state.history);
+  const open = state.positions.filter(position => position.ai).length;
+  const parts = [`${open} / ${config.maxOpen} position${open > 1 ? "s" : ""} AI`, `${stats.count} trade${stats.count > 1 ? "s" : ""} clôturé${stats.count > 1 ? "s" : ""}`];
+  if (stats.winRate != null) parts.push(`réussite ${stats.winRate.toFixed(0)} %`, `P&L ${stats.pnl >= 0 ? "+" : ""}${formatMoney(stats.pnl, 2)}`);
+  const today = aiPnlToday(state.history);
+  parts.push(`aujourd'hui ${today >= 0 ? "+" : ""}${formatMoney(today, 2)}`);
+  const status = document.querySelector("#ai-bot-status");
+  status.className = `bot-status ${aibot.paused === "daily-loss" ? "warn" : ""}`;
+  status.textContent = (aibot.paused === "daily-loss" ? "⏸ Perte maximale du jour atteinte : le bot reprend demain. · " : "") + parts.join(" · ");
+  document.querySelector("#ai-bot-log").innerHTML = aibot.log.length
+    ? aibot.log.slice(0, 8).map(item => `<div><time>${new Date(item.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span>${esc(item.text)}</span></div>`).join("")
+    : '<div class="muted">Aucune action pour le moment.</div>';
+  updateBotDot();
+}
+
+document.querySelector("#ai-zone-1m").addEventListener("click", () => { aibot.config = normalizeAi({ ...aibot.config, minMcap: 500_000, maxMcap: 2_000_000 }); saveAi(); renderAi(); showToast("Zone 1M : market cap entre 500 K et 2 M."); });
+document.querySelector("#ai-enabled").addEventListener("change", event => {
+  if (state.mode === "live") { event.target.checked = false; showToast("Le bot ne trade qu'en mode TEST : en LIVE, tu signes chaque ordre."); return; }
+  aibot.config.enabled = event.target.checked;
+  aiLog(aibot.config.enabled ? "AI Agent Bot activé." : "AI Agent Bot désactivé.");
+  saveAi(); renderAi();
+  if (aibot.config.enabled) runAiBot();
+});
+for (const field of AI_FIELDS) document.querySelector(`#ai-${field}`).addEventListener("change", event => { aibot.config = normalizeAi({ ...aibot.config, [field]: event.target.value }); saveAi(); renderAi(); });
+renderAi();
+
+/* ---- Channel Call Bot (TEST mode): enters a coin as soon as a call is posted in the owner's Telegram channel ---- */
+const CALL_FIELDS = ["amount", "takeProfitPct", "stopLossPct", "maxAgeMin", "maxChasePct", "minLiquidity", "maxOpen", "dailyLossPct", "cooldownHours"];
+const callbot = { config: normalizeCall(null), log: [], entries: {}, paused: null, calls: [], status: null, enabled: false, allowed: false, loaded: false, seen: new Set(), seenSaved: false };
+try { callbot.config = normalizeCall(JSON.parse(localStorage.getItem("pulse-callbot") || "null")); } catch { /* defaults */ }
+try { const saved = JSON.parse(localStorage.getItem("pulse-callbot-log") || "[]"); if (Array.isArray(saved)) callbot.log = saved.filter(item => item && typeof item.text === "string").slice(0, BOT_LOG_LIMIT); } catch { /* empty log */ }
+try { const saved = JSON.parse(localStorage.getItem("pulse-channel-seen") || "null"); if (Array.isArray(saved)) { callbot.seen = new Set(saved); callbot.seenSaved = true; } } catch { /* first run */ }
+function saveCall() { try { localStorage.setItem("pulse-callbot", JSON.stringify(callbot.config)); localStorage.setItem("pulse-callbot-log", JSON.stringify(callbot.log)); localStorage.setItem("pulse-channel-seen", JSON.stringify([...callbot.seen].slice(-300))); } catch { /* storage unavailable */ } }
+function callLog(text) { callbot.log.unshift({ at: Date.now(), text }); callbot.log = callbot.log.slice(0, BOT_LOG_LIMIT); }
+
+async function loadChannelCalls() {
+  if (document.hidden && callbot.loaded) return;
+  try {
+    const response = await fetch("/api/channel-calls", { headers: { accept: "application/json" } });
+    if (!response.ok) return;
+    const payload = await response.json();
+    callbot.enabled = payload.enabled; callbot.allowed = payload.allowed; callbot.status = payload.status ?? null;
+    callbot.calls = payload.calls ?? [];
+    const fresh = callbot.calls.filter(call => !callbot.seen.has(call.id));
+    // the very first load stays silent for old posts, but a call published in the last 15 minutes is never missed
+    for (const call of fresh.filter(item => item.kind !== "update" && notifState.early && (callbot.seenSaved || Date.now() - item.at < 15 * 60_000)).reverse()) {
+      const token = call.token;
+      notify({ type: "early", tokenId: token?.id ?? call.address, title: `Call du canal · $${call.symbol}${call.kind === "reentry" ? " (ré-entrée)" : ""}`, body: `${call.channel ?? "Canal"} · MCAP ${formatMarketMoney(token?.marketCap ?? call.marketCapAtCall)} · liquidité ${formatMarketMoney(token?.liquidity)}` });
+    }
+    for (const call of fresh) callbot.seen.add(call.id);
+    callbot.seenSaved = true; callbot.loaded = true;
+    if (fresh.length) saveCall();
+    runCallBot();
+    renderSignals();
+  } catch { /* offline */ }
+  renderCall();
+}
+
+function runCallBot() {
+  if (state.mode === "live" || !callbot.config.enabled || !callbot.allowed) return;
+  for (const position of state.positions) if (position.call && position.openedAt) callbot.entries[position.tokenId] = Math.max(callbot.entries[position.tokenId] ?? 0, position.openedAt);
+  for (const trade of state.history) if (trade.call) callbot.entries[trade.tokenId] = Math.max(callbot.entries[trade.tokenId] ?? 0, trade.openedAt ?? 0);
+  const { buys, paused } = pickCallEntries({ calls: callbot.calls, positions: state.positions, history: state.history, balance: state.balance, startBalance: START_BALANCE, config: callbot.config, lastEntries: callbot.entries });
+  callbot.paused = paused;
+  let opened = 0;
+  for (const { token, call, amount, stopLossPct } of buys) {
+    const preset = activePreset(amount);
+    const costs = costsFor(preset, currentSolUsd());
+    const priced = { ...token, liquidity: token.liquidity > 0 ? token.liquidity : 5000 };
+    if (validateBuy(priced, amount, state.balance, { preset, costs })) continue;
+    state.balance -= amount;
+    const position = { ...openPosition(priced, amount, { costs, preset, stopLossPct, takeProfitPct: callbot.config.takeProfitPct }), call: true };
+    state.positions.unshift(position);
+    callbot.entries[token.id] = position.openedAt;
+    opened++;
+    callLog(`Achat ${formatMoney(amount)} · $${token.symbol} (call du canal, il y a ${Math.max(Math.round((Date.now() - call.at) / 1000), 1)} s) · SL −${Math.round(stopLossPct)} %${call.slMcap > 0 && callbot.config.useChannelSl ? ` (SL du canal ${formatMarketMoney(call.slMcap)})` : ""} · TP +${callbot.config.takeProfitPct} %`);
+    notify({ type: "entry", tokenId: token.id, title: `Channel Call Bot : achat · $${token.symbol}`, body: `${formatMoney(amount)} · TP +${callbot.config.takeProfitPct} % · SL −${Math.round(stopLossPct)} %` });
+  }
+  if (opened) { saveCall(); saveWallet(); renderPositions(); }
+}
+
+function renderCall() {
+  const card = document.querySelector("#call-card");
+  if (!card) return;
+  const { config } = callbot;
+  const live = state.mode === "live";
+  document.querySelector("#call-enabled").checked = config.enabled;
+  document.querySelector("#call-state").textContent = live ? "Indisponible en LIVE" : config.enabled ? (callbot.paused === "daily-loss" ? "En pause" : "Actif") : "Désactivé";
+  for (const field of CALL_FIELDS) { const input = document.querySelector(`#call-${field}`); if (input && document.activeElement !== input) input.value = config[field]; }
+  document.querySelector("#call-reentries").checked = config.reentries;
+  document.querySelector("#call-useChannelSl").checked = config.useChannelSl;
+  const source = document.querySelector("#call-source");
+  const info = callbot.status;
+  if (!callbot.loaded) source.textContent = "";
+  else if (!callbot.enabled) source.textContent = "⚠ Le bot du canal n'est pas configuré sur ce serveur (TELEGRAM_CHANNEL_BOT_TOKEN).";
+  else if (!callbot.allowed) source.textContent = "⚠ Les calls du canal sont réservés à l'administrateur.";
+  else if (info?.lastError) source.textContent = `⚠ Telegram : ${info.lastError}`;
+  else if (!info?.chats?.length) source.textContent = `Bot @${info?.bot ?? ""} connecté. Aucun post reçu : ajoute-le comme administrateur de ton canal puis publie un post.`;
+  else source.textContent = `Bot @${info.bot ?? ""} · ${info.chats.map(chat => `${chat.title} (${chat.calls} call${chat.calls > 1 ? "s" : ""}${chat.role && chat.role !== "administrator" ? `, rôle ${chat.role}` : ""})`).join(", ")}`;
+  const stats = callStats(state.history);
+  const open = state.positions.filter(position => position.call).length;
+  const parts = [`${open} / ${config.maxOpen} position${open > 1 ? "s" : ""} call`, `${stats.count} trade${stats.count > 1 ? "s" : ""} clôturé${stats.count > 1 ? "s" : ""}`];
+  if (stats.winRate != null) parts.push(`réussite ${stats.winRate.toFixed(0)} %`, `P&L ${stats.pnl >= 0 ? "+" : ""}${formatMoney(stats.pnl, 2)}`);
+  const today = callPnlToday(state.history);
+  parts.push(`aujourd'hui ${today >= 0 ? "+" : ""}${formatMoney(today, 2)}`);
+  const status = document.querySelector("#call-bot-status");
+  status.className = `bot-status ${callbot.paused === "daily-loss" ? "warn" : ""}`;
+  status.textContent = (callbot.paused === "daily-loss" ? "⏸ Perte maximale du jour atteinte : le bot reprend demain. · " : "") + parts.join(" · ");
+  const recent = callbot.calls.filter(call => call.kind !== "update").slice(0, 6);
+  document.querySelector("#call-list").innerHTML = recent.length ? `<strong>Derniers calls</strong>${recent.map(call => {
+    const why = callRejection(call, { ...config, reentries: config.reentries });
+    const bought = state.positions.some(position => position.call && position.tokenId === call.token?.id) || state.history.some(trade => trade.call && trade.tokenId === call.token?.id && trade.openedAt >= call.at - 60_000);
+    return `<div><time>${new Date(call.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span><b>$${esc(call.symbol)}</b>${call.kind === "reentry" ? " · ré-entrée" : call.kind === "repeat" ? " · déjà annoncé" : ""} · ${bought ? esc(t("✅ acheté")) : why ? esc(`${t("ignoré :")} ${t(why)}`) : esc(t("en attente"))}</span></div>`;
+  }).join("")}` : "";
+  document.querySelector("#call-bot-log").innerHTML = callbot.log.length
+    ? callbot.log.slice(0, 8).map(item => `<div><time>${new Date(item.at).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}</time><span>${esc(item.text)}</span></div>`).join("")
+    : '<div class="muted">Aucune action pour le moment.</div>';
+  updateBotDot();
+}
+
+document.querySelector("#call-enabled").addEventListener("change", event => {
+  if (state.mode === "live") { event.target.checked = false; showToast("Le bot ne trade qu'en mode TEST : en LIVE, tu signes chaque ordre."); return; }
+  callbot.config.enabled = event.target.checked;
+  callLog(callbot.config.enabled ? "Channel Call Bot activé." : "Channel Call Bot désactivé.");
+  saveCall(); renderCall();
+});
+for (const field of CALL_FIELDS) document.querySelector(`#call-${field}`).addEventListener("change", event => { callbot.config = normalizeCall({ ...callbot.config, [field]: event.target.value }); saveCall(); renderCall(); });
+document.querySelector("#call-reentries").addEventListener("change", event => { callbot.config = normalizeCall({ ...callbot.config, reentries: event.target.checked }); saveCall(); renderCall(); });
+document.querySelector("#call-useChannelSl").addEventListener("change", event => { callbot.config = normalizeCall({ ...callbot.config, useChannelSl: event.target.checked }); saveCall(); renderCall(); renderSignals(); });
+renderCall();
+loadChannelCalls();
+setInterval(loadChannelCalls, 6_000);
+

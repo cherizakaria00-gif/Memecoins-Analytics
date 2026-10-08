@@ -9,6 +9,9 @@ import { getSolBalance, isValidSolanaAddress } from "./wallet-balance.mjs";
 import { createPhantomQrSvg } from "./wallet-qr.mjs";
 import { getCandles, isValidTimeframe } from "./chart-client.mjs";
 import { getXSignal } from "./x-client.mjs";
+import { WalletAnalysisError, analyzeWallet } from "./wallet-analysis.mjs";
+import { createAiAgent } from "./ai-agent.mjs";
+import { createChannelCalls, extractLevels, parseLevel } from "./channel-calls.mjs";
 import { createTelegramNotifier } from "./telegram-notify.mjs";
 import { createTracker } from "./signal-tracker.mjs";
 import { fetchHolderStats } from "./pumpfun-client.mjs";
@@ -30,7 +33,24 @@ const HOST = process.env.HOST ?? "127.0.0.1";
 const APP_URL = (process.env.APP_URL ?? `http://${HOST}:${PORT}`).replace(/\/+$/, "");
 const store = openStore(process.env.DATABASE_FILE ?? fileURLToPath(new URL("../data/pulse.db", import.meta.url)));
 const telegram = createTelegramNotifier({ store, token: process.env.TELEGRAM_BOT_TOKEN });
+const ai = createAiAgent({ store });
+const channelCalls = createChannelCalls({ store, token: process.env.TELEGRAM_CHANNEL_BOT_TOKEN });
+if (channelCalls.enabled) { setInterval(() => channelCalls.poll(), 5_000).unref(); setTimeout(() => channelCalls.poll(), 1_500).unref(); }
+const aiLatest = { scan: [], coins: [], scanAt: 0, coinsAt: 0 };
+/** Learns from a fresh market snapshot (live data only, never the simulation) and scores the tokens in place. */
+function aiScanFeed(feed) {
+  if (!feed?.live) return;
+  if (feed.updatedAt !== aiLatest.scanAt) { aiLatest.scanAt = feed.updatedAt; try { ai.observe(feed.tokens); } catch (error) { console.warn("AI observe failed:", error.message); } }
+  aiLatest.scan = feed.tokens;
+  ai.annotate(feed.tokens);
+}
+function aiScanCoins(value) {
+  if (value.updatedAt !== aiLatest.coinsAt) { aiLatest.coinsAt = value.updatedAt; try { ai.observe(value.tokens); } catch (error) { console.warn("AI observe failed:", error.message); } }
+  aiLatest.coins = value.tokens;
+  ai.annotate(value.tokens);
+}
 const telegramRequests = new Map();
+const walletAnalysisRequests = new Map();
 const liveTradingConfig = liveConfig();
 let feeProblem = null;
 if (liveTradingConfig.platformFeeAccount) {
@@ -227,6 +247,7 @@ const server = createServer(async (request, response) => {
     }
     if (url.pathname === "/api/tokens") {
       const feed = await getTokenFeed({ refresh: url.searchParams.get("refresh") === "1" });
+      aiScanFeed(feed);
       const held = (url.searchParams.get("held") ?? "").split(",").filter(isValidSolanaAddress).slice(0, 20);
       sendJson(response, 200, { ...feed, held: held.length && feed.live ? await getHeldTokens(held) : [], updatedAt: new Date(feed.updatedAt).toISOString() });
       return;
@@ -268,6 +289,43 @@ const server = createServer(async (request, response) => {
       }
       return;
     }
+    if (url.pathname === "/api/wallet-analysis") {
+      const address = url.searchParams.get("address") ?? "";
+      if (!isValidSolanaAddress(address)) { sendJson(response, 400, { error: "Adresse Solana invalide." }); return; }
+      if (isRateLimited(walletAnalysisRequests, clientOf(request), 6)) { sendJson(response, 429, { error: "Trop d'analyses : réessaie dans une minute." }); return; }
+      try { sendJson(response, 200, await analyzeWallet(address, { rpcUrl: liveTradingConfig.rpcUrl, transactions: Number(url.searchParams.get("limit")) || undefined })); }
+      catch (error) {
+        if (error instanceof WalletAnalysisError) sendJson(response, error.status, { error: error.message });
+        else { console.warn("Wallet analysis failed:", error.message); sendJson(response, 502, { error: "Analyse indisponible pour le moment." }); }
+      }
+      return;
+    }
+    if (url.pathname === "/api/channel-calls") {
+      // Calls of the owner's Telegram channel: visible to the administrator, and to every subscriber only with CHANNEL_CALLS_AUDIENCE=subscribers.
+      const allowed = saas.isAdmin(request.user) || process.env.CHANNEL_CALLS_AUDIENCE === "subscribers";
+      if (!channelCalls.enabled || !allowed) { sendJson(response, 200, { enabled: channelCalls.enabled, allowed, calls: [] }); return; }
+      const rows = channelCalls.recent(Date.now() - 24 * 3_600_000, 30);
+      let live = [];
+      try { live = rows.length ? await getHeldTokens([...new Set(rows.map(row => row.address))].slice(0, 20)) : []; } catch { /* the stored call data is used */ }
+      const byAddress = new Map(live.map(token => [token.id, token]));
+      sendJson(response, 200, {
+        enabled: true, allowed, status: channelCalls.status(),
+        calls: rows.map(row => ({ id: row.id, at: row.at, kind: row.kind, channel: row.chat_title, symbol: row.symbol, name: row.name, address: row.address, priceAtCall: row.price, marketCapAtCall: row.market_cap, slMcap: row.sl_mcap ?? parseLevel(extractLevels(row.text ?? "").sl), tpMcap: row.tp_mcap ?? parseLevel(extractLevels(row.text ?? "").tp), text: row.text, url: row.chat_username ? `https://t.me/${row.chat_username}/${row.message_id}` : null, token: byAddress.get(row.address) ?? null }))
+      });
+      return;
+    }
+    if (url.pathname === "/api/ai/status") { sendJson(response, 200, ai.status()); return; }
+    if (url.pathname === "/api/ai/picks") {
+      const picks = [];
+      const minMcap = Math.max(Number(url.searchParams.get("minMcap")) || 0, 0);
+      const maxMcap = Number(url.searchParams.get("maxMcap")) > 0 ? Number(url.searchParams.get("maxMcap")) : Infinity;
+      const scored = ai.annotate([...new Map([...aiLatest.scan, ...aiLatest.coins].map(token => [token.id, token])).values()]).filter(token => (token.marketCap ?? 0) >= minMcap && (token.marketCap ?? 0) < maxMcap);
+      for (const token of scored.sort((first, second) => second.ai.p - first.ai.p).slice(0, 20)) {
+        picks.push({ id: token.id, symbol: token.symbol, name: token.name, imageUrl: token.imageUrl ?? null, price: token.price, marketCap: token.marketCap, liquidity: token.liquidity, ageMinutes: token.ageMinutes, unlisted: Boolean(token.synthetic), p: token.ai.p, pros: token.ai.pros, cons: token.ai.cons, accent: token.accent ?? null, initials: token.initials ?? null });
+      }
+      sendJson(response, 200, { ready: ai.ready, picks, at: Date.now() });
+      return;
+    }
     if (url.pathname === "/api/token-status") {
       const ids = [...new Set((url.searchParams.get("ids") ?? "").split(",").filter(isValidSolanaAddress))].slice(0, 30);
       if (!ids.length) {
@@ -287,7 +345,9 @@ const server = createServer(async (request, response) => {
         return;
       }
       try {
-        sendJson(response, 200, await getNewCoins());
+        const coins = await getNewCoins();
+        aiScanCoins(coins);
+        sendJson(response, 200, coins);
       } catch (error) {
         console.warn("New coins unavailable:", error.message);
         sendJson(response, 502, { error: "New coins unavailable" });
@@ -473,6 +533,19 @@ setInterval(() => {
     }
   }
 }, RATE_WINDOW_MS).unref();
+
+let aiBusy = false;
+async function aiTick() {
+  if (aiBusy || process.env.AI_COLLECT === "0") return;
+  aiBusy = true;
+  try {
+    aiScanFeed(await getTokenFeed());
+    aiScanCoins(await getNewCoins());
+  } catch (error) { console.warn("AI collection tick failed:", error.message); }
+  finally { aiBusy = false; }
+}
+setInterval(aiTick, 45_000).unref();
+setTimeout(aiTick, 8_000).unref();
 
 let trackingBusy = false;
 async function trackingTick() {
